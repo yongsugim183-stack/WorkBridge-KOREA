@@ -18,7 +18,18 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\김용수\\\\sea-interpreter\\\\\" | Where-Object { $_.Extension -eq \".pptx\" })",
       "PowerShell(python \"C:\\\\Users\\\\����\\\\sea-interpreter\\\\fix_proposal.py\" 2>&1)",
       "Bash(gh auth *)",
-      "PowerShell(gh --version 2>$null)"
+      "PowerShell(gh --version 2>$null)",
+      "WebFetch(domain:sea-interpreter.onrender.com)",
+      "WebFetch(domain:www.kpc.or.kr)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_in_Chrome__navigate",
+      "Bash(move \"C:\\\\Users\\\\김용수\\\\sea-interpreter\\\\building-cad.html\" \"C:\\\\Users\\\\김용수\\\\sea-interpreter\\\\building-cad\\\\building-cad.html\")",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\����\\\\sea-interpreter\\\\building-cad\\\\saves\" -Force)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\����\\\\Documents\\\\KPC-����������Ʈ\" -Force)",
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\����\\\\garmin-coach\\\\index.html\" -Destination \"C:\\\\Users\\\\����\\\\Documents\\\\KPC-����������Ʈ\\\\index.html\" -Force)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
