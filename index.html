@@ -521,12 +521,35 @@
 </head>
 <body>
 
+<!-- 사용가능시간 배너 -->
+<div id="usageBanner" style="
+  background: #1e1b4b;
+  border-bottom: 1px solid #334155;
+  padding: 7px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  font-size: 12px;
+  color: #94a3b8;
+">
+  <span>🕐 <span id="currentTime"></span></span>
+  <span style="color:#334155">|</span>
+  <span>☁️ Render 무료 잔여
+    <strong id="remainHours" style="color:#a5b4fc; font-size:13px;"></strong>시간
+    <span id="remainBar" style="
+      display:inline-block; width:80px; height:6px;
+      background:#334155; border-radius:3px; vertical-align:middle; margin-left:6px; overflow:hidden;
+    "><span id="remainFill" style="display:block; height:100%; background:#6366f1; border-radius:3px; transition:width 0.5s;"></span></span>
+  </span>
+</div>
+
 <!-- 헤더 -->
 <header>
   <div class="logo">🌏</div>
   <div>
     <h1>동남아시아 동시통역기</h1>
-    <p>Voice-to-Text + Text-to-Text · 10개 언어 동시 번역</p>
+    <p>Voice-to-Text + Text-to-Text · 11개 언어 동시 번역</p>
     <p style="font-size:12px; color:#a5b4fc; margin-top:2px;">제작: 한국생산성본부 김용수 &nbsp;|&nbsp; 문의 : 궁금하면 500원</p>
   </div>
   <div class="status-dot inactive" id="statusDot"></div>
@@ -666,6 +689,31 @@ let mediaRecorder = null, audioChunks = [], audioStream = null;
 let audioContext  = null, analyserNode = null;
 
 // ── 초기화 ─────────────────────────────────────────
+// ── Render 무료 잔여 시간 계산 ──────────────────────
+const RENDER_FREE_HOURS = 750;
+const SERVICE_START = new Date("2026-06-25T00:00:00+09:00"); // 서비스 시작일
+
+function updateUsageBanner() {
+  const now = new Date();
+
+  // 현재 시각
+  document.getElementById("currentTime").textContent =
+    now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  // 서비스 시작 후 경과 시간(h)
+  const usedHours = Math.max(0, (now - SERVICE_START) / 3600000);
+  const remainHours = Math.max(0, RENDER_FREE_HOURS - usedHours);
+  const pct = Math.min(100, (remainHours / RENDER_FREE_HOURS) * 100);
+
+  document.getElementById("remainHours").textContent = Math.floor(remainHours);
+  document.getElementById("remainFill").style.width = pct + "%";
+  document.getElementById("remainFill").style.background =
+    pct > 30 ? "#6366f1" : pct > 10 ? "#f59e0b" : "#ef4444";
+}
+
+updateUsageBanner();
+setInterval(updateUsageBanner, 1000);
+
 window.onload = async () => {
   buildLangSelector();
   buildCards();
