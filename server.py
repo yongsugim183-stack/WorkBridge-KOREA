@@ -43,8 +43,17 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 
-# ── 번역 전용 스레드 풀 (언어 수 × 2) ────────────────────────────────────
-_translate_pool = ThreadPoolExecutor(max_workers=20)
+# ── 번역 전용 스레드 풀 ───────────────────────────────────────────────────
+_translate_pool = ThreadPoolExecutor(max_workers=24)
+
+# ── 재사용 HTTP 세션 (TCP 연결 풀링으로 속도 향상) ───────────────────────
+import requests as _requests
+_http_session = _requests.Session()
+_http_adapter = _requests.adapters.HTTPAdapter(
+    pool_connections=24, pool_maxsize=24, max_retries=1
+)
+_http_session.mount("https://", _http_adapter)
+_http_session.mount("http://", _http_adapter)
 
 # ── faster-whisper 로컬 모델 ──────────────────────────────────────────────
 _fw_model = None
@@ -126,7 +135,9 @@ class TranslateResponse(BaseModel):
 
 
 def _translate_one(text: str, src: str, tgt_gt: str) -> str:
-    return GoogleTranslator(source=src, target=tgt_gt).translate(text)
+    translator = GoogleTranslator(source=src, target=tgt_gt)
+    translator.session = _http_session  # 세션 재사용
+    return translator.translate(text)
 
 
 @app.post("/api/translate", response_model=TranslateResponse)
@@ -138,19 +149,17 @@ async def translate(req: TranslateRequest):
     src = "auto" if req.source_lang == "auto" else LANGUAGES.get(req.source_lang, {}).get("gt", "auto")
 
     loop = asyncio.get_event_loop()
-    tasks = {
-        code: loop.run_in_executor(
-            _translate_pool, _translate_one, req.text, src, LANGUAGES[code]["gt"]
-        )
-        for code in req.target_langs if code in LANGUAGES
-    }
+    codes = [code for code in req.target_langs if code in LANGUAGES]
+    tasks = [
+        loop.run_in_executor(_translate_pool, _translate_one, req.text, src, LANGUAGES[code]["gt"])
+        for code in codes
+    ]
 
-    translations = {}
-    for code, task in tasks.items():
-        try:
-            translations[code] = await task
-        except Exception:
-            translations[code] = ""
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    translations = {
+        code: (r if isinstance(r, str) else "")
+        for code, r in zip(codes, results)
+    }
 
     return TranslateResponse(
         source_text=req.text,
