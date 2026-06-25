@@ -691,7 +691,6 @@ let audioContext  = null, analyserNode = null;
 // ── 초기화 ─────────────────────────────────────────
 // ── Render 무료 잔여 시간 계산 ──────────────────────
 const RENDER_FREE_HOURS = 750;
-const SERVICE_START = new Date("2026-06-25T00:00:00+09:00"); // 서비스 시작일
 
 function updateUsageBanner() {
   const now = new Date();
@@ -700,8 +699,9 @@ function updateUsageBanner() {
   document.getElementById("currentTime").textContent =
     now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  // 서비스 시작 후 경과 시간(h)
-  const usedHours = Math.max(0, (now - SERVICE_START) / 3600000);
+  // 이번 달 1일 00:00 기준 경과 시간(h)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+  const usedHours = Math.max(0, (now - monthStart) / 3600000);
   const remainHours = Math.max(0, RENDER_FREE_HOURS - usedHours);
   const pct = Math.min(100, (remainHours / RENDER_FREE_HOURS) * 100);
 
