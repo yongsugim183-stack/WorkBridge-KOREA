@@ -207,11 +207,18 @@ class LoginRequest(BaseModel):
     code: str
 
 @app.post("/api/login")
-async def login(req: LoginRequest, response: Response):
+async def login(req: LoginRequest, response: Response, request: Request):
     code = req.code.strip()
     is_admin = (code == ADMIN_CODE)
     if not is_admin and code not in INVITE_CODES:
         raise HTTPException(status_code=401, detail="유효하지 않은 초대 코드입니다.")
+
+    # 클라이언트 IP (프록시/Render 환경 고려)
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or request.headers.get("x-real-ip", "")
+        or (request.client.host if request.client else "unknown")
+    )
 
     # 동시 접속 제한 (관리자 제외)
     if not is_admin:
@@ -235,6 +242,7 @@ async def login(req: LoginRequest, response: Response):
     _sessions[token] = {
         "code": code, "name": name, "is_admin": is_admin,
         "login_time": _now(), "last_active": _now(),
+        "ip": client_ip,
     }
     if not is_admin and code not in _user_stats:
         _user_stats[code] = {"trans_count": 0, "char_count": 0, "total_sec": 0,
@@ -269,9 +277,14 @@ async def admin_stats(session: str | None = Cookie(default=None)):
     active_tokens = {s["code"] for s in _sessions.values() if not s["is_admin"]}
     active_count = len(active_tokens)
 
+    # 현재 접속자 IP 맵
+    active_ip_map: dict[str, str] = {}
+    for s in _sessions.values():
+        if not s["is_admin"]:
+            active_ip_map[s["code"]] = s.get("ip", "-")
+
     stats = []
     for code, st in _user_stats.items():
-        # 현재 접속 중인 세션의 시간 반영
         current_sec = 0
         for s in _sessions.values():
             if s["code"] == code:
@@ -281,6 +294,7 @@ async def admin_stats(session: str | None = Cookie(default=None)):
             "code": code,
             "name": st["name"],
             "online": code in active_tokens,
+            "ip": active_ip_map.get(code, "-"),
             "trans_count": st["trans_count"],
             "char_count": st["char_count"],
             "total_min": round(total_sec / 60, 1),
