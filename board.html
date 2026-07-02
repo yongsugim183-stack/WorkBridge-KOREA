@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KPC 게시판 | 다국어 소통 게시판</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --accent: #a855f7;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #273549;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── 헤더 ── */
+    header {
+      background: linear-gradient(135deg, #1e1b4b, #312e81, #1e1b4b);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header .logo { font-size: 28px; }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .header-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .nav-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .nav-btn.primary:hover { background: var(--primary-dark); }
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(168,85,247,0.15);
+      border: 1px solid rgba(168,85,247,0.4);
+      color: #c084fc;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* ── 메인 ── */
+    .main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 28px 20px;
+    }
+
+    /* ── 툴바 ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toolbar h2 { font-size: 20px; font-weight: 700; }
+    .toolbar-right { display: flex; gap: 10px; align-items: center; }
+
+    /* ── 게시글 카드 ── */
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+    .post-card:hover { border-color: #475569; }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .post-flag { font-size: 22px; }
+    .post-author { font-weight: 600; font-size: 15px; }
+    .post-lang-name { font-size: 12px; color: var(--text-muted); }
+    .post-time { font-size: 12px; color: #475569; margin-left: auto; }
+
+    .post-body { margin-bottom: 14px; }
+    .post-original {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .post-korean {
+      background: var(--surface2);
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .post-korean .label {
+      font-size: 11px;
+      color: #a5b4fc;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .post-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .btn-reply {
+      padding: 6px 14px;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.4);
+      color: #a5b4fc;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-reply:hover { background: rgba(99,102,241,0.3); }
+    .btn-delete {
+      padding: 6px 14px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-delete:hover { background: rgba(239,68,68,0.25); }
+
+    /* ── 답글 ── */
+    .replies-wrap { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
+    .reply-card {
+      background: #162032;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+    }
+    .reply-time { font-size: 11px; color: #475569; margin-bottom: 8px; }
+    .reply-admin-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a855f7;
+      margin-bottom: 4px;
+    }
+    .reply-translated {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .reply-korean {
+      font-size: 12px;
+      color: var(--text-muted);
+      border-left: 2px solid #334155;
+      padding-left: 10px;
+    }
+
+    /* ── 답글 폼 ── */
+    .reply-form {
+      margin-top: 12px;
+      display: none;
+    }
+    .reply-form.open { display: flex; flex-direction: column; gap: 10px; }
+    .reply-form textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    .reply-form textarea:focus { outline: none; border-color: var(--primary); }
+    .reply-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── 글쓰기 모달 ── */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    .modal-bg.hidden { display: none; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 28px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+    .form-group select option { background: var(--surface); }
+
+    /* 언어 선택 버튼 그리드 */
+    .lang-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .lang-opt {
+      padding: 8px 6px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .lang-opt:hover { border-color: var(--primary); background: rgba(99,102,241,0.1); }
+    .lang-opt.selected {
+      border-color: var(--primary);
+      background: rgba(99,102,241,0.25);
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+    .lang-opt .flag { font-size: 18px; display: block; margin-bottom: 2px; }
+
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+
+    /* ── 관리자 로그인 모달 ── */
+    .admin-modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+    .admin-modal-bg.hidden { display: none; }
+    .admin-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 320px;
+    }
+    .admin-modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .admin-modal input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    .admin-modal input:focus { outline: none; border-color: var(--primary); }
+    .err-msg { font-size: 12px; color: var(--danger); margin-bottom: 10px; display: none; }
+
+    /* ── 빈 상태 ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; }
+
+    /* ── 토스트 ── */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      color: var(--text);
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── 스피너 ── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn { padding: 8px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { color: var(--text); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header>
+  <div class="logo">🌏</div>
+  <div>
+    <h1>KPC 다국어 게시판</h1>
+    <p>외국인 직원이 글을 올리면 한국어로 번역 · 관리자 답변은 해당 언어로 자동 번역</p>
+  </div>
+  <div class="header-nav">
+    <span id="adminBadge" class="admin-badge" style="display:none">👑 관리자 모드</span>
+    <button class="nav-btn" id="adminToggleBtn" onclick="toggleAdminMode()">🔐 관리자 로그인</button>
+    <a href="/" class="nav-btn">← 통역기로</a>
+  </div>
+</header>
+
+<div class="main">
+  <div class="toolbar">
+    <h2>게시판</h2>
+    <div class="toolbar-right">
+      <span id="postCount" style="font-size:13px; color:var(--text-muted)"></span>
+      <button class="nav-btn primary" onclick="openPostModal()">✏️ 글쓰기</button>
+    </div>
+  </div>
+
+  <div id="postList"></div>
+</div>
+
+<!-- 글쓰기 모달 -->
+<div class="modal-bg hidden" id="postModal">
+  <div class="modal">
+    <h3>✏️ 새 글 쓰기</h3>
+
+    <div class="form-group">
+      <label>이름 (Name / Tên / ชื่อ ...)</label>
+      <input type="text" id="authorName" placeholder="이름을 입력하세요" maxlength="30" />
+    </div>
+
+    <div class="form-group">
+      <label>사용 언어를 선택하세요</label>
+      <div class="lang-grid" id="langGrid"></div>
+    </div>
+
+    <div class="form-group">
+      <label>내용 <span id="selectedLangHint" style="color:#a5b4fc"></span></label>
+      <textarea id="postText" placeholder="내용을 입력하세요..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closePostModal()">취소</button>
+      <button class="btn btn-primary" id="submitPostBtn" onclick="submitPost()">글 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 로그인 모달 -->
+<div class="admin-modal-bg hidden" id="adminModal">
+  <div class="admin-modal">
+    <h3>🔐 관리자 로그인</h3>
+    <input type="password" id="adminPwInput" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter') doAdminLogin()" />
+    <div class="err-msg" id="adminErr">비밀번호가 틀렸습니다.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="document.getElementById('adminModal').classList.add('hidden')">취소</button>
+      <button class="btn btn-primary" onclick="doAdminLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SERVER_BASE = "";
+const LANGUAGES = {
+  ko: { name:"한국어",     flag:"🇰🇷" },
+  en: { name:"English",   flag:"🇺🇸" },
+  zh: { name:"中文(简体)", flag:"🇨🇳" },
+  th: { name:"ภาษาไทย",  flag:"🇹🇭" },
+  vi: { name:"Tiếng Việt",flag:"🇻🇳" },
+  id: { name:"Bahasa Indonesia", flag:"🇮🇩" },
+  ms: { name:"Bahasa Melayu",   flag:"🇲🇾" },
+  tl: { name:"Filipino",flag:"🇵🇭" },
+  my: { name:"မြန်မာဘာသာ",flag:"🇲🇲" },
+  uz: { name:"O'zbek tili", flag:"🇺🇿" },
+  si: { name:"සිංහල",    flag:"🇱🇰" },
+  mn: { name:"Монгол хэл",flag:"🇲🇳" },
+};
+
+let isAdmin = false;
+let adminPassword = "";
+let selectedLang = "";
+
+// ── 언어 그리드 초기화 ──────────────────────────────────────
+function initLangGrid() {
+  const grid = document.getElementById("langGrid");
+  grid.innerHTML = Object.entries(LANGUAGES).map(([code, info]) => `
+    <button class="lang-opt" onclick="selectLang('${code}')" id="lang-opt-${code}">
+      <span class="flag">${info.flag}</span>
+      <span>${info.name}</span>
+    </button>
+  `).join("");
+}
+
+function selectLang(code) {
+  selectedLang = code;
+  document.querySelectorAll(".lang-opt").forEach(el => el.classList.remove("selected"));
+  document.getElementById(`lang-opt-${code}`).classList.add("selected");
+  const hint = code === "ko" ? "" : `(${LANGUAGES[code].name}로 작성하세요)`;
+  document.getElementById("selectedLangHint").textContent = hint;
+  document.getElementById("postText").placeholder = `내용을 ${LANGUAGES[code].name}로 입력하세요...`;
+}
+
+// ── 관리자 모드 ──────────────────────────────────────────────
+function toggleAdminMode() {
+  if (isAdmin) {
+    isAdmin = false;
+    adminPassword = "";
+    document.getElementById("adminBadge").style.display = "none";
+    document.getElementById("adminToggleBtn").textContent = "🔐 관리자 로그인";
+    renderPosts(cachedPosts);
+  } else {
+    document.getElementById("adminModal").classList.remove("hidden");
+    document.getElementById("adminPwInput").value = "";
+    document.getElementById("adminErr").style.display = "none";
+    setTimeout(() => document.getElementById("adminPwInput").focus(), 100);
+  }
+}
+
+async function doAdminLogin() {
+  const pw = document.getElementById("adminPwInput").value;
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/admin/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (res.ok) {
+      isAdmin = true;
+      adminPassword = pw;
+      document.getElementById("adminModal").classList.add("hidden");
+      document.getElementById("adminBadge").style.display = "inline-flex";
+      document.getElementById("adminToggleBtn").textContent = "🚪 관리자 로그아웃";
+      renderPosts(cachedPosts);
+      showToast("관리자 모드 활성화");
+    } else {
+      document.getElementById("adminErr").style.display = "block";
+    }
+  } catch {
+    document.getElementById("adminErr").style.display = "block";
+  }
+}
+
+// ── 글쓰기 모달 ──────────────────────────────────────────────
+function openPostModal() {
+  document.getElementById("postModal").classList.remove("hidden");
+  document.getElementById("authorName").value = "";
+  document.getElementById("postText").value = "";
+  selectedLang = "";
+  document.querySelectorAll(".lang-opt").forEach(el => el.classList.remove("selected"));
+  document.getElementById("selectedLangHint").textContent = "";
+  document.getElementById("postText").placeholder = "내용을 입력하세요...";
+  document.getElementById("authorName").focus();
+}
+
+function closePostModal() {
+  document.getElementById("postModal").classList.add("hidden");
+}
+
+async function submitPost() {
+  const name = document.getElementById("authorName").value.trim();
+  const text = document.getElementById("postText").value.trim();
+  if (!selectedLang) { showToast("언어를 선택하세요"); return; }
+  if (!text) { showToast("내용을 입력하세요"); return; }
+
+  const btn = document.getElementById("submitPostBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author_name: name || "익명", lang: selectedLang, text }),
+    });
+    if (!res.ok) throw new Error();
+    closePostModal();
+    showToast("글이 등록됐습니다");
+    await loadPosts();
+  } catch {
+    showToast("등록 실패. 다시 시도해 주세요");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "글 등록";
+  }
+}
+
+// ── 게시글 로드 & 렌더 ────────────────────────────────────────
+let cachedPosts = [];
+
+async function loadPosts() {
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts`);
+    cachedPosts = await res.json();
+    renderPosts(cachedPosts);
+  } catch {
+    document.getElementById("postList").innerHTML =
+      '<div class="empty-state"><div class="icon">⚠️</div><p>게시글을 불러오지 못했습니다.</p></div>';
+  }
+}
+
+function renderPosts(posts) {
+  const el = document.getElementById("postList");
+  document.getElementById("postCount").textContent = posts.length ? `총 ${posts.length}건` : "";
+
+  if (!posts.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>아직 게시글이 없습니다.<br>첫 번째 글을 남겨보세요!</p></div>';
+    return;
+  }
+
+  el.innerHTML = posts.map(post => `
+    <div class="post-card" id="post-${post.id}">
+      <div class="post-meta">
+        <span class="post-flag">${post.flag}</span>
+        <div>
+          <div class="post-author">${escHtml(post.author_name)}</div>
+          <div class="post-lang-name">${post.lang_name}</div>
+        </div>
+        <span class="post-time">${post.timestamp}</span>
+      </div>
+
+      <div class="post-body">
+        <div class="post-original">${escHtml(post.original_text)}</div>
+        ${post.lang !== "ko" ? `
+        <div class="post-korean">
+          <div class="label">🇰🇷 한국어 번역</div>
+          ${escHtml(post.korean_text)}
+        </div>` : ""}
+      </div>
+
+      ${post.replies.length ? `
+      <div class="replies-wrap">
+        ${post.replies.map(r => `
+          <div class="reply-card">
+            <div class="reply-time">관리자 · ${r.timestamp}</div>
+            ${post.lang !== "ko" ? `
+            <div class="reply-translated">${escHtml(r.translated_text)}</div>
+            <div class="reply-korean"><small>🇰🇷 원문:</small> ${escHtml(r.korean_text)}</div>
+            ` : `
+            <div class="reply-translated">${escHtml(r.korean_text)}</div>
+            `}
+          </div>
+        `).join("")}
+      </div>` : ""}
+
+      ${isAdmin ? `
+      <div class="post-actions">
+        <button class="btn-reply" onclick="toggleReplyForm('${post.id}')">💬 답변하기</button>
+        <button class="btn-delete" onclick="deletePost('${post.id}')">🗑 삭제</button>
+      </div>
+      <div class="reply-form" id="rf-${post.id}">
+        <textarea placeholder="한국어로 답변을 작성하세요..." id="rt-${post.id}"></textarea>
+        <div class="reply-form-actions">
+          <button class="btn btn-secondary" onclick="toggleReplyForm('${post.id}')">취소</button>
+          <button class="btn btn-primary" onclick="submitReply('${post.id}')">답변 등록</button>
+        </div>
+      </div>
+      ` : ""}
+    </div>
+  `).join("");
+}
+
+function toggleReplyForm(postId) {
+  const form = document.getElementById(`rf-${postId}`);
+  form.classList.toggle("open");
+  if (form.classList.contains("open")) {
+    document.getElementById(`rt-${postId}`).focus();
+  }
+}
+
+async function submitReply(postId) {
+  const text = document.getElementById(`rt-${postId}`).value.trim();
+  if (!text) { showToast("답변 내용을 입력하세요"); return; }
+
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, admin_password: adminPassword }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      showToast(d.detail || "오류가 발생했습니다");
+      return;
+    }
+    showToast("답변이 등록됐습니다");
+    await loadPosts();
+  } catch {
+    showToast("서버 연결 오류");
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm("이 게시글을 삭제하시겠습니까?")) return;
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}?pw=${encodeURIComponent(adminPassword)}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      showToast("삭제됐습니다");
+      await loadPosts();
+    } else {
+      showToast("삭제 실패");
+    }
+  } catch {
+    showToast("서버 연결 오류");
+  }
+}
+
+// ── 유틸 ────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
+}
+
+// 모달 배경 클릭 시 닫기
+document.getElementById("postModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("postModal")) closePostModal();
+});
+document.getElementById("adminModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("adminModal")) document.getElementById("adminModal").classList.add("hidden");
+});
+
+// ── 초기화 ──────────────────────────────────────────────────
+initLangGrid();
+loadPosts();
+setInterval(loadPosts, 30000);
+</script>
+</body>
+</html>

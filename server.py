@@ -35,6 +35,10 @@ if os.environ.get("DISABLE_SSL_VERIFY") == "1":
     except Exception:
         pass
 
+import json
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -254,6 +258,142 @@ async def get_languages():
 @app.get("/")
 async def root():
     return FileResponse("index.html")
+
+
+@app.get("/board")
+async def board():
+    return FileResponse("board.html")
+
+
+# ── 게시판 ────────────────────────────────────────────────────────────────────
+BOARD_FILE = Path("board_data.json")
+BOARD_ADMIN_PW = os.environ.get("BOARD_ADMIN_PW", "kpc2024")
+_board_lock = asyncio.Lock()
+
+
+def _load_board() -> dict:
+    if BOARD_FILE.exists():
+        try:
+            return json.loads(BOARD_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"posts": []}
+
+
+def _save_board(data: dict):
+    BOARD_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class BoardPostRequest(BaseModel):
+    author_name: str
+    lang: str
+    text: str
+
+
+class BoardReplyRequest(BaseModel):
+    text: str
+    admin_password: str = ""
+
+
+@app.get("/api/board/posts")
+async def get_board_posts():
+    async with _board_lock:
+        data = _load_board()
+    return data["posts"]
+
+
+@app.post("/api/board/posts")
+async def create_board_post(req: BoardPostRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+    if req.lang not in LANGUAGES:
+        raise HTTPException(status_code=400, detail="지원하지 않는 언어입니다.")
+
+    src_gt = LANGUAGES[req.lang]["gt"]
+    loop = asyncio.get_event_loop()
+
+    if req.lang == "ko":
+        korean_text = req.text
+    else:
+        korean_text = await loop.run_in_executor(
+            _translate_pool, _translate_one, req.text, src_gt, "ko"
+        )
+
+    post = {
+        "id": str(uuid.uuid4()),
+        "author_name": req.author_name.strip() or "익명",
+        "lang": req.lang,
+        "lang_name": LANGUAGES[req.lang]["name"],
+        "flag": LANGUAGES[req.lang]["flag"],
+        "original_text": req.text,
+        "korean_text": korean_text,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+        "replies": [],
+    }
+
+    async with _board_lock:
+        data = _load_board()
+        data["posts"].insert(0, post)
+        _save_board(data)
+
+    return post
+
+
+@app.post("/api/board/posts/{post_id}/reply")
+async def create_board_reply(post_id: str, req: BoardReplyRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="답변 내용을 입력하세요.")
+
+    loop = asyncio.get_event_loop()
+
+    async with _board_lock:
+        data = _load_board()
+        post = next((p for p in data["posts"] if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+
+        target_lang = post["lang"]
+        if target_lang == "ko":
+            translated_text = req.text
+        else:
+            tgt_gt = LANGUAGES[target_lang]["gt"]
+            translated_text = await loop.run_in_executor(
+                _translate_pool, _translate_one, req.text, "ko", tgt_gt
+            )
+
+        reply = {
+            "id": str(uuid.uuid4()),
+            "korean_text": req.text,
+            "translated_text": translated_text,
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+        }
+        post["replies"].append(reply)
+        _save_board(data)
+
+    return reply
+
+
+@app.delete("/api/board/posts/{post_id}")
+async def delete_board_post(post_id: str, pw: str = ""):
+    if pw != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
+    async with _board_lock:
+        data = _load_board()
+        before = len(data["posts"])
+        data["posts"] = [p for p in data["posts"] if p["id"] != post_id]
+        if len(data["posts"]) == before:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        _save_board(data)
+    return {"ok": True}
+
+
+@app.post("/api/board/admin/verify")
+async def verify_admin(body: dict):
+    if body.get("password") == BOARD_ADMIN_PW:
+        return {"ok": True}
+    raise HTTPException(status_code=403, detail="비밀번호가 틀렸습니다.")
 
 
 if __name__ == "__main__":
