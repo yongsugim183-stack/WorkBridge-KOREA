@@ -279,10 +279,13 @@ _USE_JSONBIN    = bool(_JSONBIN_KEY and _JSONBIN_BIN_ID)
 def _load_board_local() -> dict:
     if BOARD_FILE.exists():
         try:
-            return json.loads(BOARD_FILE.read_text(encoding="utf-8"))
+            d = json.loads(BOARD_FILE.read_text(encoding="utf-8"))
+            if "emergency" not in d:
+                d["emergency"] = []
+            return d
         except Exception:
             pass
-    return {"posts": []}
+    return {"posts": [], "emergency": []}
 
 
 def _save_board_local(data: dict):
@@ -571,6 +574,106 @@ async def verify_admin(body: dict):
     if body.get("password") == BOARD_ADMIN_PW:
         return {"ok": True}
     raise HTTPException(status_code=403, detail="비밀번호가 틀렸습니다.")
+
+
+# ── 긴급 연락망 ───────────────────────────────────────────────────────────────
+@app.get("/emergency")
+async def emergency_page():
+    return FileResponse("emergency.html")
+
+
+class EmergencyPostRequest(BaseModel):
+    title: str
+    text: str
+    admin_password: str
+
+
+@app.get("/api/emergency/posts")
+async def get_emergency_posts():
+    async with _board_lock:
+        data = await _load_board()
+    return data.get("emergency", [])
+
+
+@app.post("/api/emergency/posts")
+async def create_emergency_post(req: EmergencyPostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    loop = asyncio.get_event_loop()
+    lang_codes = [c for c in LANGUAGES if c != "ko"]
+    tasks = [
+        loop.run_in_executor(_translate_pool, _translate_one, req.text, "ko", LANGUAGES[c]["gt"])
+        for c in lang_codes
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    translations = {"ko": req.text}
+    for code, result in zip(lang_codes, results):
+        translations[code] = result if isinstance(result, str) else req.text
+
+    post = {
+        "id": str(uuid.uuid4()),
+        "title": req.title.strip(),
+        "original_text": req.text,
+        "translations": translations,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+        "edited": False,
+    }
+
+    async with _board_lock:
+        data = await _load_board()
+        data.setdefault("emergency", []).insert(0, post)
+        await _save_board(data)
+
+    return post
+
+
+@app.put("/api/emergency/posts/{post_id}")
+async def edit_emergency_post(post_id: str, req: EmergencyPostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    loop = asyncio.get_event_loop()
+    lang_codes = [c for c in LANGUAGES if c != "ko"]
+    tasks = [
+        loop.run_in_executor(_translate_pool, _translate_one, req.text, "ko", LANGUAGES[c]["gt"])
+        for c in lang_codes
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    translations = {"ko": req.text}
+    for code, result in zip(lang_codes, results):
+        translations[code] = result if isinstance(result, str) else req.text
+
+    async with _board_lock:
+        data = await _load_board()
+        post = next((p for p in data.get("emergency", []) if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        post["title"] = req.title.strip()
+        post["original_text"] = req.text
+        post["translations"] = translations
+        post["edited"] = True
+        await _save_board(data)
+
+    return post
+
+
+@app.delete("/api/emergency/posts/{post_id}")
+async def delete_emergency_post(post_id: str, pw: str = ""):
+    if pw != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    async with _board_lock:
+        data = await _load_board()
+        before = len(data.get("emergency", []))
+        data["emergency"] = [p for p in data.get("emergency", []) if p["id"] != post_id]
+        if len(data["emergency"]) == before:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        await _save_board(data)
+    return {"ok": True}
 
 
 if __name__ == "__main__":
