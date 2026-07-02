@@ -10,15 +10,3 @@ services:
         value: tiny
       - key: WHISPER_THREADS
         value: "2"
-
-  - type: web
-    name: sea-chatbot
-    runtime: docker
-    dockerfilePath: ./Dockerfile.chatbot
-    plan: free
-    healthCheckPath: /health
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: GOOGLE_OAUTH_CREDENTIALS_JSON
-        sync: false

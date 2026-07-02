@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sea-interpreter",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "chatbot",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "chatbot_server:app", "--host", "0.0.0.0", "--port", "8001"],
+      "port": 8001
+    },
+    {
+      "name": "personal-blog",
+      "cwd": "C:\\Users\\김용수\\personal-blog",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "3001"],
+      "port": 3001
+    }
+  ]
+}

@@ -7,7 +7,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py index.html login.html admin.html ./
+COPY server.py index.html ./
 
 ENV WHISPER_MODEL=tiny
 ENV WHISPER_THREADS=2
