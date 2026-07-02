@@ -445,7 +445,8 @@
       <textarea id="postText" placeholder="내용을 입력하세요..."></textarea>
     </div>
 
-    <div class="modal-actions">
+    <div class="modal-actions" style="align-items:center">
+      <span id="draftBadge" style="font-size:11px;color:#64748b;display:none">💾 임시저장됨</span>
       <button class="btn btn-secondary" onclick="closePostModal()">취소</button>
       <button class="btn btn-primary" id="submitPostBtn" onclick="submitPost()">글 등록</button>
     </div>
@@ -548,6 +549,48 @@ async function doAdminLogin() {
   }
 }
 
+// ── 자동저장 (localStorage) ──────────────────────────────────
+const DRAFT_KEY = "kpc_board_draft";
+let autoSaveTimer = null;
+
+function saveDraft() {
+  const draft = {
+    name: document.getElementById("authorName").value,
+    lang: selectedLang,
+    text: document.getElementById("postText").value,
+  };
+  if (draft.text || draft.name) {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    document.getElementById("draftBadge").style.display = "inline";
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft.name) document.getElementById("authorName").value = draft.name;
+    if (draft.text) document.getElementById("postText").value = draft.text;
+    if (draft.lang) {
+      selectLang(draft.lang);
+    }
+    if (draft.text || draft.name) {
+      document.getElementById("draftBadge").style.display = "inline";
+    }
+  } catch {}
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  document.getElementById("draftBadge").style.display = "none";
+}
+
+function startAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveDraft, 800);
+}
+
 // ── 글쓰기 모달 ──────────────────────────────────────────────
 function openPostModal() {
   document.getElementById("postModal").classList.remove("hidden");
@@ -557,7 +600,15 @@ function openPostModal() {
   document.querySelectorAll(".lang-opt").forEach(el => el.classList.remove("selected"));
   document.getElementById("selectedLangHint").textContent = "";
   document.getElementById("postText").placeholder = "내용을 입력하세요...";
+  document.getElementById("draftBadge").style.display = "none";
+
+  // 저장된 임시글 복원
+  loadDraft();
   document.getElementById("authorName").focus();
+
+  // 입력 시 자동저장 이벤트
+  document.getElementById("authorName").oninput = startAutoSave;
+  document.getElementById("postText").oninput = startAutoSave;
 }
 
 function closePostModal() {
@@ -581,6 +632,7 @@ async function submitPost() {
       body: JSON.stringify({ author_name: name || "익명", lang: selectedLang, text }),
     });
     if (!res.ok) throw new Error();
+    clearDraft();          // 등록 성공 시 임시저장 삭제
     closePostModal();
     showToast("글이 등록됐습니다");
     await loadPosts();
