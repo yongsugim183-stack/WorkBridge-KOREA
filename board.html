@@ -177,6 +177,34 @@
       transition: all 0.2s;
     }
     .btn-delete:hover { background: rgba(239,68,68,0.25); }
+    .btn-edit {
+      padding: 6px 14px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #6ee7b7;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-edit:hover { background: rgba(16,185,129,0.25); }
+
+    /* ── 인라인 수정 폼 ── */
+    .inline-edit { display: none; margin-top: 10px; }
+    .inline-edit.open { display: flex; flex-direction: column; gap: 8px; }
+    .inline-edit textarea {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg); border: 1px solid var(--primary);
+      border-radius: 8px; color: var(--text); font-size: 14px;
+      resize: vertical; min-height: 80px; font-family: inherit;
+    }
+    .inline-edit textarea:focus { outline: none; }
+    .inline-edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .edited-badge {
+      font-size: 10px; color: #64748b;
+      margin-left: 6px; font-style: italic;
+    }
 
     /* ── 답글 ── */
     .replies-wrap { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
@@ -599,13 +627,13 @@ function renderPosts(posts) {
       <div class="post-meta">
         <span class="post-flag">${post.flag}</span>
         <div>
-          <div class="post-author">${escHtml(post.author_name)}</div>
+          <div class="post-author">${escHtml(post.author_name)}${post.edited ? '<span class="edited-badge">(edited)</span>' : ""}</div>
           <div class="post-lang-name">${post.lang_name}</div>
         </div>
         <span class="post-time">${post.timestamp}</span>
       </div>
 
-      <div class="post-body">
+      <div id="post-body-${post.id}">
         <div class="post-original">${escHtml(post.original_text)}</div>
         ${post.lang !== "ko" ? `
         <div class="post-korean">
@@ -614,34 +642,71 @@ function renderPosts(posts) {
         </div>` : ""}
       </div>
 
+      <!-- 게시글 인라인 수정 폼 (관리자) -->
+      ${isAdmin ? `
+      <div class="inline-edit" id="pe-${post.id}">
+        <textarea id="pet-${post.id}">${escHtml(post.original_text)}</textarea>
+        <div class="inline-edit-actions">
+          <button class="btn btn-secondary" onclick="cancelEditPost('${post.id}')">Cancel</button>
+          <button class="btn btn-primary" id="peb-${post.id}" onclick="saveEditPost('${post.id}')">Save</button>
+        </div>
+      </div>` : ""}
+
       ${post.replies.length ? `
       <div class="replies-wrap">
         ${post.replies.map(r => {
           const adminReply = r.is_admin !== false;
+          const editText = adminReply ? (r.korean_text || r.original_text) : r.original_text;
           if (adminReply) {
             return `
-            <div class="reply-card admin">
+            <div class="reply-card admin" id="reply-${r.id}">
               <div class="reply-meta">
                 <span class="reply-flag">👑</span>
-                <span class="reply-author admin">Admin (관리자)</span>
+                <span class="reply-author admin">Admin (관리자)${r.edited ? '<span class="edited-badge">(edited)</span>' : ""}</span>
                 <span class="reply-time">${r.timestamp}</span>
+                ${isAdmin ? `
+                <button class="btn-edit" style="padding:3px 10px;font-size:11px;margin-left:6px" onclick="toggleEditReply('${post.id}','${r.id}')">✏️</button>
+                <button class="btn-delete" style="padding:3px 10px;font-size:11px" onclick="deleteReply('${post.id}','${r.id}')">🗑</button>` : ""}
               </div>
-              <div class="reply-original">${escHtml(r.translated_text || r.korean_text)}</div>
-              ${(r.translated_text && r.translated_text !== r.korean_text) ? `
-              <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+              <div id="reply-body-${r.id}">
+                <div class="reply-original">${escHtml(r.translated_text || r.korean_text)}</div>
+                ${(r.translated_text && r.translated_text !== r.korean_text) ? `
+                <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+              </div>
+              ${isAdmin ? `
+              <div class="inline-edit" id="re-${r.id}">
+                <textarea id="ret-${r.id}">${escHtml(editText)}</textarea>
+                <div class="inline-edit-actions">
+                  <button class="btn btn-secondary" onclick="cancelEditReply('${r.id}')">Cancel</button>
+                  <button class="btn btn-primary" id="reb-${r.id}" onclick="saveEditReply('${post.id}','${r.id}')">Save</button>
+                </div>
+              </div>` : ""}
             </div>`;
           } else {
             return `
-            <div class="reply-card user">
+            <div class="reply-card user" id="reply-${r.id}">
               <div class="reply-meta">
                 <span class="reply-flag">${r.flag}</span>
-                <span class="reply-author user">${escHtml(r.author_name)}</span>
+                <span class="reply-author user">${escHtml(r.author_name)}${r.edited ? '<span class="edited-badge">(edited)</span>' : ""}</span>
                 <span style="font-size:11px;color:#64748b">${r.lang_name}</span>
                 <span class="reply-time">${r.timestamp}</span>
+                ${isAdmin ? `
+                <button class="btn-edit" style="padding:3px 10px;font-size:11px;margin-left:6px" onclick="toggleEditReply('${post.id}','${r.id}')">✏️</button>
+                <button class="btn-delete" style="padding:3px 10px;font-size:11px" onclick="deleteReply('${post.id}','${r.id}')">🗑</button>` : ""}
               </div>
-              <div class="reply-original">${escHtml(r.original_text)}</div>
-              ${(r.korean_text && r.korean_text !== r.original_text) ? `
-              <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+              <div id="reply-body-${r.id}">
+                <div class="reply-original">${escHtml(r.original_text)}</div>
+                ${(r.korean_text && r.korean_text !== r.original_text) ? `
+                <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+              </div>
+              ${isAdmin ? `
+              <div class="inline-edit" id="re-${r.id}">
+                <textarea id="ret-${r.id}">${escHtml(editText)}</textarea>
+                <div class="inline-edit-actions">
+                  <button class="btn btn-secondary" onclick="cancelEditReply('${r.id}')">Cancel</button>
+                  <button class="btn btn-primary" id="reb-${r.id}" onclick="saveEditReply('${post.id}','${r.id}')">Save</button>
+                </div>
+              </div>` : ""}
             </div>`;
           }
         }).join("")}
@@ -649,7 +714,9 @@ function renderPosts(posts) {
 
       <div class="post-actions">
         <button class="btn-reply" onclick="toggleReplyForm('${post.id}')">💬 Reply</button>
-        ${isAdmin ? `<button class="btn-delete" onclick="deletePost('${post.id}')">🗑 Delete</button>` : ""}
+        ${isAdmin ? `
+        <button class="btn-edit" onclick="toggleEditPost('${post.id}')">✏️ Edit</button>
+        <button class="btn-delete" onclick="deletePost('${post.id}')">🗑 Delete</button>` : ""}
       </div>
 
       <div class="reply-form" id="rf-${post.id}">
@@ -673,6 +740,7 @@ function renderPosts(posts) {
   `).join("");
 }
 
+// ── 답글 폼 토글 ─────────────────────────────────────────────
 function toggleReplyForm(postId) {
   const form = document.getElementById(`rf-${postId}`);
   form.classList.toggle("open");
@@ -683,6 +751,7 @@ function toggleReplyForm(postId) {
   }
 }
 
+// ── 답글 등록 ────────────────────────────────────────────────
 async function submitReply(postId) {
   const text = document.getElementById(`rt-${postId}`).value.trim();
   if (!text) { showToast("Please enter your reply"); return; }
@@ -700,42 +769,93 @@ async function submitReply(postId) {
       const lang = document.getElementById(`rl-${postId}`)?.value || "en";
       body = { text, author_name: name, lang };
     }
-
     const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}/reply`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      showToast(d.detail || "Error occurred");
-      return;
-    }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.detail || "Error"); return; }
     showToast(isAdmin ? "Reply posted" : "Reply submitted!");
     await loadPosts();
-  } catch {
-    showToast("Server connection error");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Submit";
-  }
+  } catch { showToast("Server connection error"); }
+  finally { btn.disabled = false; btn.textContent = "Submit"; }
 }
 
+// ── 게시글 수정 ──────────────────────────────────────────────
+function toggleEditPost(postId) {
+  const form = document.getElementById(`pe-${postId}`);
+  const body = document.getElementById(`post-body-${postId}`);
+  const open = form.classList.toggle("open");
+  body.style.display = open ? "none" : "";
+  if (open) document.getElementById(`pet-${postId}`).focus();
+}
+function cancelEditPost(postId) {
+  document.getElementById(`pe-${postId}`).classList.remove("open");
+  document.getElementById(`post-body-${postId}`).style.display = "";
+}
+async function saveEditPost(postId) {
+  const text = document.getElementById(`pet-${postId}`).value.trim();
+  if (!text) { showToast("내용을 입력하세요"); return; }
+  const btn = document.getElementById(`peb-${postId}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, admin_password: adminPassword }),
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.detail || "Error"); return; }
+    showToast("게시글이 수정됐습니다");
+    await loadPosts();
+  } catch { showToast("Server connection error"); }
+  finally { btn.disabled = false; btn.textContent = "Save"; }
+}
+
+// ── 게시글 삭제 ──────────────────────────────────────────────
 async function deletePost(postId) {
   if (!confirm("Delete this post?")) return;
   try {
-    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}?pw=${encodeURIComponent(adminPassword)}`, {
-      method: "DELETE",
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}?pw=${encodeURIComponent(adminPassword)}`, { method: "DELETE" });
+    if (res.ok) { showToast("삭제됐습니다"); await loadPosts(); }
+    else showToast("삭제 실패");
+  } catch { showToast("서버 연결 오류"); }
+}
+
+// ── 답글 수정 ────────────────────────────────────────────────
+function toggleEditReply(postId, replyId) {
+  const form = document.getElementById(`re-${replyId}`);
+  const body = document.getElementById(`reply-body-${replyId}`);
+  const open = form.classList.toggle("open");
+  body.style.display = open ? "none" : "";
+  if (open) document.getElementById(`ret-${replyId}`).focus();
+}
+function cancelEditReply(replyId) {
+  document.getElementById(`re-${replyId}`).classList.remove("open");
+  document.getElementById(`reply-body-${replyId}`).style.display = "";
+}
+async function saveEditReply(postId, replyId) {
+  const text = document.getElementById(`ret-${replyId}`).value.trim();
+  if (!text) { showToast("내용을 입력하세요"); return; }
+  const btn = document.getElementById(`reb-${replyId}`);
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}/replies/${replyId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, admin_password: adminPassword }),
     });
-    if (res.ok) {
-      showToast("삭제됐습니다");
-      await loadPosts();
-    } else {
-      showToast("삭제 실패");
-    }
-  } catch {
-    showToast("서버 연결 오류");
-  }
+    if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.detail || "Error"); return; }
+    showToast("답글이 수정됐습니다");
+    await loadPosts();
+  } catch { showToast("Server connection error"); }
+  finally { btn.disabled = false; btn.textContent = "Save"; }
+}
+
+// ── 답글 삭제 ────────────────────────────────────────────────
+async function deleteReply(postId, replyId) {
+  if (!confirm("Delete this reply?")) return;
+  try {
+    const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}/replies/${replyId}?pw=${encodeURIComponent(adminPassword)}`, { method: "DELETE" });
+    if (res.ok) { showToast("답글이 삭제됐습니다"); await loadPosts(); }
+    else showToast("삭제 실패");
+  } catch { showToast("서버 연결 오류"); }
 }
 
 // ── 유틸 ────────────────────────────────────────────────────

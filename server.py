@@ -421,6 +421,110 @@ async def delete_board_post(post_id: str, pw: str = ""):
     return {"ok": True}
 
 
+class BoardEditRequest(BaseModel):
+    text: str
+    admin_password: str = ""
+
+
+@app.put("/api/board/posts/{post_id}")
+async def edit_board_post(post_id: str, req: BoardEditRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    loop = asyncio.get_event_loop()
+
+    async with _board_lock:
+        data = _load_board()
+        post = next((p for p in data["posts"] if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+
+        post_lang = post["lang"]
+        src_gt = LANGUAGES.get(post_lang, {}).get("gt", "auto")
+        if post_lang == "ko":
+            korean_text = req.text
+        else:
+            korean_text = await loop.run_in_executor(
+                _translate_pool, _translate_one, req.text, src_gt, "ko"
+            )
+        post["original_text"] = req.text
+        post["korean_text"] = korean_text
+        post["edited"] = True
+        _save_board(data)
+
+    return post
+
+
+@app.delete("/api/board/posts/{post_id}/replies/{reply_id}")
+async def delete_board_reply(post_id: str, reply_id: str, pw: str = ""):
+    if pw != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
+    async with _board_lock:
+        data = _load_board()
+        post = next((p for p in data["posts"] if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        before = len(post["replies"])
+        post["replies"] = [r for r in post["replies"] if r["id"] != reply_id]
+        if len(post["replies"]) == before:
+            raise HTTPException(status_code=404, detail="답글을 찾을 수 없습니다.")
+        _save_board(data)
+    return {"ok": True}
+
+
+@app.put("/api/board/posts/{post_id}/replies/{reply_id}")
+async def edit_board_reply(post_id: str, reply_id: str, req: BoardEditRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    loop = asyncio.get_event_loop()
+
+    async with _board_lock:
+        data = _load_board()
+        post = next((p for p in data["posts"] if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        reply = next((r for r in post["replies"] if r["id"] == reply_id), None)
+        if not reply:
+            raise HTTPException(status_code=404, detail="답글을 찾을 수 없습니다.")
+
+        if reply.get("is_admin", True):
+            # 관리자 답글: 한국어 → 게시글 작성자 언어로 번역
+            post_lang = post["lang"]
+            if post_lang == "ko":
+                translated_text = req.text
+            else:
+                tgt_gt = LANGUAGES[post_lang]["gt"]
+                translated_text = await loop.run_in_executor(
+                    _translate_pool, _translate_one, req.text, "ko", tgt_gt
+                )
+            reply["original_text"] = req.text
+            reply["korean_text"] = req.text
+            reply["translated_text"] = translated_text
+        else:
+            # 이용자 답글: 자국어 → 한국어 번역
+            reply_lang = reply.get("lang", "en")
+            src_gt = LANGUAGES.get(reply_lang, {}).get("gt", "auto")
+            if reply_lang == "ko":
+                korean_text = req.text
+            else:
+                korean_text = await loop.run_in_executor(
+                    _translate_pool, _translate_one, req.text, src_gt, "ko"
+                )
+            reply["original_text"] = req.text
+            reply["korean_text"] = korean_text
+            reply["translated_text"] = req.text
+
+        reply["edited"] = True
+        _save_board(data)
+
+    return reply
+
+
 @app.post("/api/board/admin/verify")
 async def verify_admin(body: dict):
     if body.get("password") == BOARD_ADMIN_PW:
