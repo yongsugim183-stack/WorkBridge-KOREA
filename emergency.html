@@ -393,11 +393,12 @@ function renderPosts(posts) {
 
   const langInfo = LANGUAGES[currentLang];
   el.innerHTML = posts.map(post => {
-    const text = post.translations?.[currentLang] || post.original_text;
+    const title = post.title_translations?.[currentLang] || post.title;
+    const text  = post.translations?.[currentLang] || post.original_text;
     return `
     <div class="emg-card" id="epost-${post.id}">
       <div class="emg-header">
-        <div class="emg-title">🚨 ${escHtml(post.title)}${post.edited ? '<span class="edited-badge">(edited)</span>' : ""}</div>
+        <div class="emg-title">📋 ${escHtml(title)}${post.edited ? '<span class="edited-badge">(edited)</span>' : ""}</div>
         <div class="emg-meta">
           <span class="emg-time">${post.timestamp}</span>
         </div>

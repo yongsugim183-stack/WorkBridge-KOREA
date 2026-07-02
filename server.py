@@ -595,6 +595,30 @@ async def get_emergency_posts():
     return data.get("emergency", [])
 
 
+async def _translate_emergency(title: str, text: str) -> tuple[dict, dict]:
+    """제목·내용을 12개 언어로 병렬 번역하여 (title_trans, text_trans) 반환."""
+    loop = asyncio.get_event_loop()
+    lang_codes = [c for c in LANGUAGES if c != "ko"]
+    title_tasks = [
+        loop.run_in_executor(_translate_pool, _translate_one, title, "ko", LANGUAGES[c]["gt"])
+        for c in lang_codes
+    ]
+    text_tasks = [
+        loop.run_in_executor(_translate_pool, _translate_one, text, "ko", LANGUAGES[c]["gt"])
+        for c in lang_codes
+    ]
+    all_results = await asyncio.gather(*title_tasks, *text_tasks, return_exceptions=True)
+    title_results = all_results[:len(lang_codes)]
+    text_results  = all_results[len(lang_codes):]
+
+    title_trans = {"ko": title}
+    text_trans  = {"ko": text}
+    for code, tr, tx in zip(lang_codes, title_results, text_results):
+        title_trans[code] = tr if isinstance(tr, str) else title
+        text_trans[code]  = tx if isinstance(tx, str) else text
+    return title_trans, text_trans
+
+
 @app.post("/api/emergency/posts")
 async def create_emergency_post(req: EmergencyPostRequest):
     if req.admin_password != BOARD_ADMIN_PW:
@@ -602,22 +626,14 @@ async def create_emergency_post(req: EmergencyPostRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="내용을 입력하세요.")
 
-    loop = asyncio.get_event_loop()
-    lang_codes = [c for c in LANGUAGES if c != "ko"]
-    tasks = [
-        loop.run_in_executor(_translate_pool, _translate_one, req.text, "ko", LANGUAGES[c]["gt"])
-        for c in lang_codes
-    ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    translations = {"ko": req.text}
-    for code, result in zip(lang_codes, results):
-        translations[code] = result if isinstance(result, str) else req.text
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
 
     post = {
         "id": str(uuid.uuid4()),
         "title": req.title.strip(),
+        "title_translations": title_trans,
         "original_text": req.text,
-        "translations": translations,
+        "translations": text_trans,
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
         "edited": False,
     }
@@ -637,16 +653,7 @@ async def edit_emergency_post(post_id: str, req: EmergencyPostRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="내용을 입력하세요.")
 
-    loop = asyncio.get_event_loop()
-    lang_codes = [c for c in LANGUAGES if c != "ko"]
-    tasks = [
-        loop.run_in_executor(_translate_pool, _translate_one, req.text, "ko", LANGUAGES[c]["gt"])
-        for c in lang_codes
-    ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    translations = {"ko": req.text}
-    for code, result in zip(lang_codes, results):
-        translations[code] = result if isinstance(result, str) else req.text
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
 
     async with _board_lock:
         data = await _load_board()
@@ -654,8 +661,9 @@ async def edit_emergency_post(post_id: str, req: EmergencyPostRequest):
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
         post["title"] = req.title.strip()
+        post["title_translations"] = title_trans
         post["original_text"] = req.text
-        post["translations"] = translations
+        post["translations"] = text_trans
         post["edited"] = True
         await _save_board(data)
 
