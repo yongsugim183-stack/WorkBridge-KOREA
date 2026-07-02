@@ -582,6 +582,13 @@ function renderPosts(posts) {
   const el = document.getElementById("postList");
   document.getElementById("postCount").textContent = posts.length ? `총 ${posts.length}건` : "";
 
+  // 관리자(Admin) 공지사항 항상 상단 고정
+  posts = [...posts].sort((a, b) => {
+    const aNotice = a.author_name === "Admin (관리자)" ? 1 : 0;
+    const bNotice = b.author_name === "Admin (관리자)" ? 1 : 0;
+    return bNotice - aNotice;
+  });
+
   if (!posts.length) {
     el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>No posts yet.<br>Be the first to write!</p></div>';
     return;
