@@ -181,51 +181,46 @@
     /* ── 답글 ── */
     .replies-wrap { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px; }
     .reply-card {
-      background: #162032;
       border-radius: 10px;
       padding: 12px 16px;
       margin-bottom: 10px;
     }
-    .reply-time { font-size: 11px; color: #475569; margin-bottom: 8px; }
-    .reply-admin-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: #a855f7;
-      margin-bottom: 4px;
+    .reply-card.admin { background: #1a1040; border-left: 3px solid #a855f7; }
+    .reply-card.user  { background: #162032; border-left: 3px solid #334155; }
+    .reply-meta {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
     }
-    .reply-translated {
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--text);
-      margin-bottom: 8px;
+    .reply-flag { font-size: 16px; }
+    .reply-author { font-size: 12px; font-weight: 700; }
+    .reply-author.admin { color: #c084fc; }
+    .reply-author.user  { color: #a5b4fc; }
+    .reply-time { font-size: 11px; color: #475569; margin-left: auto; }
+    .reply-original {
+      font-size: 14px; line-height: 1.6; color: var(--text); margin-bottom: 6px;
     }
-    .reply-korean {
-      font-size: 12px;
-      color: var(--text-muted);
-      border-left: 2px solid #334155;
-      padding-left: 10px;
+    .reply-sub {
+      font-size: 12px; color: var(--text-muted);
+      border-left: 2px solid #334155; padding-left: 10px; line-height: 1.5;
     }
 
     /* ── 답글 폼 ── */
-    .reply-form {
-      margin-top: 12px;
-      display: none;
-    }
+    .reply-form { margin-top: 12px; display: none; }
     .reply-form.open { display: flex; flex-direction: column; gap: 10px; }
-    .reply-form textarea {
-      width: 100%;
-      padding: 12px 14px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 14px;
-      resize: vertical;
-      min-height: 80px;
-      font-family: inherit;
+    .reply-form input, .reply-form textarea {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
     }
-    .reply-form textarea:focus { outline: none; border-color: var(--primary); }
+    .reply-form textarea { resize: vertical; min-height: 80px; }
+    .reply-form input:focus, .reply-form textarea:focus { outline: none; border-color: var(--primary); }
+    .reply-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .reply-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .reply-form select {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px;
+    }
+    .reply-form select:focus { outline: none; border-color: var(--primary); }
 
     /* ── 글쓰기 모달 ── */
     .modal-bg {
@@ -614,32 +609,59 @@ function renderPosts(posts) {
 
       ${post.replies.length ? `
       <div class="replies-wrap">
-        ${post.replies.map(r => `
-          <div class="reply-card">
-            <div class="reply-time">관리자 · ${r.timestamp}</div>
-            ${post.lang !== "ko" ? `
-            <div class="reply-translated">${escHtml(r.translated_text)}</div>
-            <div class="reply-korean"><small>🇰🇷 원문:</small> ${escHtml(r.korean_text)}</div>
-            ` : `
-            <div class="reply-translated">${escHtml(r.korean_text)}</div>
-            `}
-          </div>
-        `).join("")}
+        ${post.replies.map(r => {
+          const adminReply = r.is_admin !== false;
+          if (adminReply) {
+            return `
+            <div class="reply-card admin">
+              <div class="reply-meta">
+                <span class="reply-flag">👑</span>
+                <span class="reply-author admin">Admin (관리자)</span>
+                <span class="reply-time">${r.timestamp}</span>
+              </div>
+              <div class="reply-original">${escHtml(r.translated_text || r.korean_text)}</div>
+              ${(r.translated_text && r.translated_text !== r.korean_text) ? `
+              <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+            </div>`;
+          } else {
+            return `
+            <div class="reply-card user">
+              <div class="reply-meta">
+                <span class="reply-flag">${r.flag}</span>
+                <span class="reply-author user">${escHtml(r.author_name)}</span>
+                <span style="font-size:11px;color:#64748b">${r.lang_name}</span>
+                <span class="reply-time">${r.timestamp}</span>
+              </div>
+              <div class="reply-original">${escHtml(r.original_text)}</div>
+              ${(r.korean_text && r.korean_text !== r.original_text) ? `
+              <div class="reply-sub">🇰🇷 ${escHtml(r.korean_text)}</div>` : ""}
+            </div>`;
+          }
+        }).join("")}
       </div>` : ""}
 
-      ${isAdmin ? `
       <div class="post-actions">
-        <button class="btn-reply" onclick="toggleReplyForm('${post.id}')">💬 답변하기</button>
-        <button class="btn-delete" onclick="deletePost('${post.id}')">🗑 삭제</button>
+        <button class="btn-reply" onclick="toggleReplyForm('${post.id}')">💬 Reply</button>
+        ${isAdmin ? `<button class="btn-delete" onclick="deletePost('${post.id}')">🗑 Delete</button>` : ""}
       </div>
+
       <div class="reply-form" id="rf-${post.id}">
-        <textarea placeholder="한국어로 답변을 작성하세요..." id="rt-${post.id}"></textarea>
+        ${isAdmin ? `
+          <textarea placeholder="Write your reply in Korean... (한국어로 답변 작성)" id="rt-${post.id}"></textarea>
+        ` : `
+          <div class="reply-form-row">
+            <input type="text" placeholder="Your name" id="rn-${post.id}" maxlength="30" />
+            <select id="rl-${post.id}">
+              ${Object.entries(LANGUAGES).map(([c,i]) => `<option value="${c}">${i.flag} ${i.name}</option>`).join("")}
+            </select>
+          </div>
+          <textarea placeholder="Write your reply in your language..." id="rt-${post.id}"></textarea>
+        `}
         <div class="reply-form-actions">
-          <button class="btn btn-secondary" onclick="toggleReplyForm('${post.id}')">취소</button>
-          <button class="btn btn-primary" onclick="submitReply('${post.id}')">답변 등록</button>
+          <button class="btn btn-secondary" onclick="toggleReplyForm('${post.id}')">Cancel</button>
+          <button class="btn btn-primary" id="rb-${post.id}" onclick="submitReply('${post.id}')">Submit</button>
         </div>
       </div>
-      ` : ""}
     </div>
   `).join("");
 }
@@ -648,29 +670,47 @@ function toggleReplyForm(postId) {
   const form = document.getElementById(`rf-${postId}`);
   form.classList.toggle("open");
   if (form.classList.contains("open")) {
-    document.getElementById(`rt-${postId}`).focus();
+    const nameInput = document.getElementById(`rn-${postId}`);
+    if (nameInput) nameInput.focus();
+    else document.getElementById(`rt-${postId}`).focus();
   }
 }
 
 async function submitReply(postId) {
   const text = document.getElementById(`rt-${postId}`).value.trim();
-  if (!text) { showToast("답변 내용을 입력하세요"); return; }
+  if (!text) { showToast("Please enter your reply"); return; }
+
+  const btn = document.getElementById(`rb-${postId}`);
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
 
   try {
+    let body;
+    if (isAdmin) {
+      body = { text, admin_password: adminPassword };
+    } else {
+      const name = (document.getElementById(`rn-${postId}`)?.value || "").trim();
+      const lang = document.getElementById(`rl-${postId}`)?.value || "en";
+      body = { text, author_name: name, lang };
+    }
+
     const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}/reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, admin_password: adminPassword }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      showToast(d.detail || "오류가 발생했습니다");
+      showToast(d.detail || "Error occurred");
       return;
     }
-    showToast("답변이 등록됐습니다");
+    showToast(isAdmin ? "Reply posted" : "Reply submitted!");
     await loadPosts();
   } catch {
-    showToast("서버 연결 오류");
+    showToast("Server connection error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Submit";
   }
 }
 

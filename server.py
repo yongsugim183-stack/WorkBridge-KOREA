@@ -293,6 +293,8 @@ class BoardPostRequest(BaseModel):
 class BoardReplyRequest(BaseModel):
     text: str
     admin_password: str = ""
+    author_name: str = ""
+    lang: str = "en"
 
 
 @app.get("/api/board/posts")
@@ -341,11 +343,10 @@ async def create_board_post(req: BoardPostRequest):
 
 @app.post("/api/board/posts/{post_id}/reply")
 async def create_board_reply(post_id: str, req: BoardReplyRequest):
-    if req.admin_password != BOARD_ADMIN_PW:
-        raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
     if not req.text.strip():
-        raise HTTPException(status_code=400, detail="답변 내용을 입력하세요.")
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
 
+    is_admin = req.admin_password == BOARD_ADMIN_PW
     loop = asyncio.get_event_loop()
 
     async with _board_lock:
@@ -354,21 +355,52 @@ async def create_board_reply(post_id: str, req: BoardReplyRequest):
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
 
-        target_lang = post["lang"]
-        if target_lang == "ko":
-            translated_text = req.text
+        if is_admin:
+            # 관리자: 한국어 작성 → 게시글 작성자 언어로 번역
+            post_lang = post["lang"]
+            if post_lang == "ko":
+                translated_text = req.text
+            else:
+                tgt_gt = LANGUAGES[post_lang]["gt"]
+                translated_text = await loop.run_in_executor(
+                    _translate_pool, _translate_one, req.text, "ko", tgt_gt
+                )
+            reply = {
+                "id": str(uuid.uuid4()),
+                "is_admin": True,
+                "author_name": "Admin (관리자)",
+                "lang": "ko",
+                "flag": "👑",
+                "lang_name": "관리자",
+                "original_text": req.text,
+                "korean_text": req.text,
+                "translated_text": translated_text,
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+            }
         else:
-            tgt_gt = LANGUAGES[target_lang]["gt"]
-            translated_text = await loop.run_in_executor(
-                _translate_pool, _translate_one, req.text, "ko", tgt_gt
-            )
+            # 일반 이용자: 자신의 언어로 작성 → 한국어로 번역
+            if req.lang not in LANGUAGES:
+                raise HTTPException(status_code=400, detail="지원하지 않는 언어입니다.")
+            src_gt = LANGUAGES[req.lang]["gt"]
+            if req.lang == "ko":
+                korean_text = req.text
+            else:
+                korean_text = await loop.run_in_executor(
+                    _translate_pool, _translate_one, req.text, src_gt, "ko"
+                )
+            reply = {
+                "id": str(uuid.uuid4()),
+                "is_admin": False,
+                "author_name": req.author_name.strip() or "익명",
+                "lang": req.lang,
+                "flag": LANGUAGES[req.lang]["flag"],
+                "lang_name": LANGUAGES[req.lang]["name"],
+                "original_text": req.text,
+                "korean_text": korean_text,
+                "translated_text": req.text,
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+            }
 
-        reply = {
-            "id": str(uuid.uuid4()),
-            "korean_text": req.text,
-            "translated_text": translated_text,
-            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
-        }
         post["replies"].append(reply)
         _save_board(data)
 
