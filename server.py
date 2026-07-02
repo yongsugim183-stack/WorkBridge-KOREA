@@ -267,7 +267,7 @@ async def board():
 
 # ── 게시판 ────────────────────────────────────────────────────────────────────
 BOARD_FILE = Path("board_data.json")
-BOARD_ADMIN_PW = os.environ.get("BOARD_ADMIN_PW", "kpc2024")
+BOARD_ADMIN_PW = os.environ.get("BOARD_ADMIN_PW", "0101")
 _board_lock = asyncio.Lock()
 
 
