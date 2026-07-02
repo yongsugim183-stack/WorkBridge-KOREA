@@ -852,7 +852,7 @@ function setupSilenceDetection(stream) {
   const data     = new Uint8Array(analyserNode.frequencyBinCount);
   let silenceMs  = 0;
   const THRESH   = 8;    // 평균 진폭 임계값
-  const MAX_IDLE = 1200; // 1.2초 침묵 시 자동 정지
+  const MAX_IDLE = 2000; // 2초 침묵 시 자동 정지
 
   function tick() {
     if (!isRecording) return;
