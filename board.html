@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KPC 게시판 | 다국어 소통 게시판</title>
+  <title>KPC Foreign Employees' Board</title>
   <style>
     :root {
       --primary: #6366f1;
@@ -380,8 +380,8 @@
 <header>
   <div class="logo">🌏</div>
   <div>
-    <h1>KPC 다국어 게시판</h1>
-    <p>외국인 직원이 글을 올리면 한국어로 번역 · 관리자 답변은 해당 언어로 자동 번역</p>
+    <h1>KPC Foreign Employees' Board</h1>
+    <p>Post in your language · Auto-translated to Korean · Admin replies translated back to your language</p>
   </div>
   <div class="header-nav">
     <span id="adminBadge" class="admin-badge" style="display:none">👑 관리자 모드</span>
@@ -392,10 +392,10 @@
 
 <div class="main">
   <div class="toolbar">
-    <h2>게시판</h2>
+    <h2>Foreign Employees' Board</h2>
     <div class="toolbar-right">
       <span id="postCount" style="font-size:13px; color:var(--text-muted)"></span>
-      <button class="nav-btn primary" onclick="openPostModal()">✏️ 글쓰기</button>
+      <button class="nav-btn primary" onclick="openPostModal()">✏️ New Post</button>
     </div>
   </div>
 
@@ -579,7 +579,7 @@ async function loadPosts() {
     renderPosts(cachedPosts);
   } catch {
     document.getElementById("postList").innerHTML =
-      '<div class="empty-state"><div class="icon">⚠️</div><p>게시글을 불러오지 못했습니다.</p></div>';
+      '<div class="empty-state"><div class="icon">⚠️</div><p>Failed to load posts.</p></div>';
   }
 }
 
@@ -588,7 +588,7 @@ function renderPosts(posts) {
   document.getElementById("postCount").textContent = posts.length ? `총 ${posts.length}건` : "";
 
   if (!posts.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>아직 게시글이 없습니다.<br>첫 번째 글을 남겨보세요!</p></div>';
+    el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>No posts yet.<br>Be the first to write!</p></div>';
     return;
   }
 
@@ -675,7 +675,7 @@ async function submitReply(postId) {
 }
 
 async function deletePost(postId) {
-  if (!confirm("이 게시글을 삭제하시겠습니까?")) return;
+  if (!confirm("Delete this post?")) return;
   try {
     const res = await fetch(`${SERVER_BASE}/api/board/posts/${postId}?pw=${encodeURIComponent(adminPassword)}`, {
       method: "DELETE",
