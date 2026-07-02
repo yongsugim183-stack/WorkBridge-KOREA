@@ -270,8 +270,13 @@ BOARD_FILE = Path("board_data.json")
 BOARD_ADMIN_PW = os.environ.get("BOARD_ADMIN_PW", "0101")
 _board_lock = asyncio.Lock()
 
+# JSONBin.io 외부 영구 저장소 (환경변수 설정 시 사용)
+_JSONBIN_KEY    = os.environ.get("JSONBIN_KEY", "")
+_JSONBIN_BIN_ID = os.environ.get("JSONBIN_BIN_ID", "")
+_USE_JSONBIN    = bool(_JSONBIN_KEY and _JSONBIN_BIN_ID)
 
-def _load_board() -> dict:
+
+def _load_board_local() -> dict:
     if BOARD_FILE.exists():
         try:
             return json.loads(BOARD_FILE.read_text(encoding="utf-8"))
@@ -280,8 +285,44 @@ def _load_board() -> dict:
     return {"posts": []}
 
 
-def _save_board(data: dict):
-    BOARD_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+def _save_board_local(data: dict):
+    try:
+        BOARD_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+async def _load_board() -> dict:
+    if _USE_JSONBIN:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as client:
+                res = await client.get(
+                    f"https://api.jsonbin.io/v3/b/{_JSONBIN_BIN_ID}/latest",
+                    headers={"X-Master-Key": _JSONBIN_KEY},
+                )
+                if res.status_code == 200:
+                    data = res.json().get("record", {"posts": []})
+                    _save_board_local(data)   # 로컬 백업
+                    return data
+        except Exception as e:
+            print(f"[JSONBin] load error: {e}", flush=True)
+    return _load_board_local()
+
+
+async def _save_board(data: dict):
+    _save_board_local(data)   # 로컬 항상 저장
+    if _USE_JSONBIN:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.put(
+                    f"https://api.jsonbin.io/v3/b/{_JSONBIN_BIN_ID}",
+                    json=data,
+                    headers={"X-Master-Key": _JSONBIN_KEY, "Content-Type": "application/json"},
+                )
+        except Exception as e:
+            print(f"[JSONBin] save error: {e}", flush=True)
 
 
 class BoardPostRequest(BaseModel):
@@ -300,7 +341,7 @@ class BoardReplyRequest(BaseModel):
 @app.get("/api/board/posts")
 async def get_board_posts():
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
     return data["posts"]
 
 
@@ -334,9 +375,9 @@ async def create_board_post(req: BoardPostRequest):
     }
 
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         data["posts"].insert(0, post)
-        _save_board(data)
+        await _save_board(data)
 
     return post
 
@@ -350,7 +391,7 @@ async def create_board_reply(post_id: str, req: BoardReplyRequest):
     loop = asyncio.get_event_loop()
 
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         post = next((p for p in data["posts"] if p["id"] == post_id), None)
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
@@ -402,7 +443,7 @@ async def create_board_reply(post_id: str, req: BoardReplyRequest):
             }
 
         post["replies"].append(reply)
-        _save_board(data)
+        await _save_board(data)
 
     return reply
 
@@ -412,12 +453,12 @@ async def delete_board_post(post_id: str, pw: str = ""):
     if pw != BOARD_ADMIN_PW:
         raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         before = len(data["posts"])
         data["posts"] = [p for p in data["posts"] if p["id"] != post_id]
         if len(data["posts"]) == before:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
-        _save_board(data)
+        await _save_board(data)
     return {"ok": True}
 
 
@@ -436,7 +477,7 @@ async def edit_board_post(post_id: str, req: BoardEditRequest):
     loop = asyncio.get_event_loop()
 
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         post = next((p for p in data["posts"] if p["id"] == post_id), None)
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
@@ -452,7 +493,7 @@ async def edit_board_post(post_id: str, req: BoardEditRequest):
         post["original_text"] = req.text
         post["korean_text"] = korean_text
         post["edited"] = True
-        _save_board(data)
+        await _save_board(data)
 
     return post
 
@@ -462,7 +503,7 @@ async def delete_board_reply(post_id: str, reply_id: str, pw: str = ""):
     if pw != BOARD_ADMIN_PW:
         raise HTTPException(status_code=403, detail="관리자 비밀번호가 틀렸습니다.")
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         post = next((p for p in data["posts"] if p["id"] == post_id), None)
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
@@ -470,7 +511,7 @@ async def delete_board_reply(post_id: str, reply_id: str, pw: str = ""):
         post["replies"] = [r for r in post["replies"] if r["id"] != reply_id]
         if len(post["replies"]) == before:
             raise HTTPException(status_code=404, detail="답글을 찾을 수 없습니다.")
-        _save_board(data)
+        await _save_board(data)
     return {"ok": True}
 
 
@@ -484,7 +525,7 @@ async def edit_board_reply(post_id: str, reply_id: str, req: BoardEditRequest):
     loop = asyncio.get_event_loop()
 
     async with _board_lock:
-        data = _load_board()
+        data = await _load_board()
         post = next((p for p in data["posts"] if p["id"] == post_id), None)
         if not post:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
@@ -520,7 +561,7 @@ async def edit_board_reply(post_id: str, reply_id: str, req: BoardEditRequest):
             reply["translated_text"] = req.text
 
         reply["edited"] = True
-        _save_board(data)
+        await _save_board(data)
 
     return reply
 
