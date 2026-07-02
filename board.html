@@ -89,6 +89,40 @@
       padding: 28px 20px;
     }
 
+    /* ── 고정 공지 ── */
+    .notice-banner {
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.1));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-left: 4px solid #6366f1;
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 20px;
+    }
+    .notice-banner .notice-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #a5b4fc;
+      margin-bottom: 10px;
+    }
+    .notice-banner .notice-pin {
+      background: #6366f1;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .notice-banner .notice-body {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-line;
+    }
+
     /* ── 툴바 ── */
     .toolbar {
       display: flex;
@@ -420,6 +454,20 @@
       <span id="postCount" style="font-size:13px; color:var(--text-muted)"></span>
       <button class="nav-btn primary" onclick="openPostModal()">✏️ New Post</button>
     </div>
+  </div>
+
+  <!-- 고정 공지사항 -->
+  <div class="notice-banner">
+    <div class="notice-title">
+      📌 Notice <span class="notice-pin">PINNED</span>
+    </div>
+    <div class="notice-body">📢 How to use the bulletin board
+
+1. The bulletin board is for inquiries only for foreign workers.
+
+2. Slandering and abusive language are deleted by the administrator.
+
+Thank you.</div>
   </div>
 
   <div id="postList"></div>
