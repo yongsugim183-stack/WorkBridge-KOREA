@@ -122,6 +122,28 @@
       color: var(--text);
       white-space: pre-line;
     }
+    .notice-lang-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .notice-lang-chip {
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .notice-lang-chip:hover,
+    .notice-lang-chip.active {
+      background: #6366f1;
+      border-color: #6366f1;
+      color: #fff;
+    }
 
     /* ── 툴바 ── */
     .toolbar {
@@ -460,15 +482,10 @@
   <!-- 고정 공지사항 -->
   <div class="notice-banner">
     <div class="notice-title">
-      📌 Notice <span class="notice-pin">PINNED</span>
+      📌 <span id="noticeHeading">Notice</span> <span class="notice-pin">PINNED</span>
     </div>
-    <div class="notice-body">📢 How to use the bulletin board
-
-1. The bulletin board is for inquiries only for foreign workers.
-
-2. Slandering and abusive language are deleted by the administrator.
-
-Thank you.</div>
+    <div class="notice-lang-bar" id="noticeLangBar"></div>
+    <div class="notice-body" id="noticeBody"></div>
   </div>
 
   <div id="postList"></div>
@@ -542,6 +559,41 @@ const LANGUAGES = {
 let isAdmin = false;
 let adminPassword = "";
 let selectedLang = "";
+
+// ── 공지사항 번역 ──────────────────────────────────────────
+const NOTICE_TRANSLATIONS = {
+  ko: { heading:"공지사항", body:"📢 게시판 이용 안내\n\n1. 본 게시판은 외국인 근로자를 위한 문의 전용입니다.\n\n2. 비방 및 욕설 게시물은 관리자가 삭제합니다.\n\n감사합니다." },
+  en: { heading:"Notice",  body:"📢 How to use the bulletin board\n\n1. The bulletin board is for inquiries only for foreign workers.\n\n2. Slandering and abusive language are deleted by the administrator.\n\nThank you." },
+  zh: { heading:"公告",    body:"📢 公告栏使用说明\n\n1. 本公告栏仅供外籍员工提问使用。\n\n2. 诽谤和辱骂性言论将由管理员删除。\n\n谢谢。" },
+  th: { heading:"ประกาศ", body:"📢 วิธีใช้กระดานประกาศ\n\n1. กระดานนี้มีไว้สำหรับการสอบถามของพนักงานต่างชาติเท่านั้น\n\n2. การใส่ร้ายและภาษาที่ไม่สุภาพจะถูกลบโดยผู้ดูแล\n\nขอบคุณ" },
+  vi: { heading:"Thông báo", body:"📢 Cách sử dụng bảng tin\n\n1. Bảng tin này chỉ dành cho các câu hỏi của công nhân nước ngoài.\n\n2. Nội dung bôi nhọ và ngôn ngữ thô tục sẽ bị quản trị viên xóa.\n\nCảm ơn." },
+  id: { heading:"Pengumuman", body:"📢 Cara menggunakan papan pengumuman\n\n1. Papan pengumuman ini hanya untuk pertanyaan karyawan asing.\n\n2. Fitnah dan bahasa kasar akan dihapus oleh administrator.\n\nTerima kasih." },
+  ms: { heading:"Notis",   body:"📢 Cara menggunakan papan buletin\n\n1. Papan buletin ini hanya untuk pertanyaan pekerja asing sahaja.\n\n2. Fitnah dan bahasa kesat akan dipadamkan oleh pentadbir.\n\nTerima kasih." },
+  tl: { heading:"Abiso",   body:"📢 Paano gamitin ang bulletin board\n\n1. Ang bulletin board ay para lamang sa mga katanungan ng mga dayuhang manggagawa.\n\n2. Ang panlalait at masamang wika ay tinatanggal ng tagapangasiwa.\n\nSalamat." },
+  my: { heading:"အသိပြန့်", body:"📢 သတင်းပြားသုံးနည်း\n\n1. ဤသတင်းပြားသည် နိုင်ငံခြားသားအလုပ်သမားများ၏ မေးခွန်းများသာ ဖြစ်သည်။\n\n2. မသင့်လျော်သောဘာသာစကားများကို စီမံခန့်ခွဲသူမှ ဖျက်မည်ဖြစ်သည်။\n\nကျေးဇူးတင်ပါသည်။" },
+  uz: { heading:"E'lon",   body:"📢 Xabarlar taxtasidan foydalanish\n\n1. Xabarlar taxtasi faqat xorijiy ishchilarning savollari uchun mo'ljallangan.\n\n2. Tuhmat va haqoratli til administrator tomonidan o'chiriladi.\n\nRahmat." },
+  si: { heading:"දැනුම්දීම", body:"📢 පුවරුව භාවිතා කරන ආකාරය\n\n1. මෙම පුවරුව විදේශ කම්කරුවන් සඳහා පමණක් ප්‍රශ්න සඳහාය.\n\n2. අපකීර්ති සහ අශ්ලීල භාෂාව පරිපාලක විසින් මකනු ලැබේ.\n\nස්තූතියි." },
+  mn: { heading:"Мэдэгдэл", body:"📢 Мэдэгдлийн самбар ашиглах заавар\n\n1. Энэ самбар нь гадаадын ажилчдын асуултуудад зориулагдсан.\n\n2. Гүтгэлэг болон бүдүүлэг үг хэллэгийг администратор устгана.\n\nБаярлалаа." },
+};
+
+let noticeLang = "en";
+
+function renderNoticeLangBar() {
+  const bar = document.getElementById("noticeLangBar");
+  bar.innerHTML = Object.entries(LANGUAGES).map(([code, info]) =>
+    `<button class="notice-lang-chip${code === noticeLang ? " active" : ""}" onclick="switchNoticeLang('${code}')">${info.flag} ${info.name}</button>`
+  ).join("");
+}
+
+function switchNoticeLang(code) {
+  noticeLang = code;
+  const t = NOTICE_TRANSLATIONS[code] || NOTICE_TRANSLATIONS["en"];
+  document.getElementById("noticeHeading").textContent = t.heading;
+  document.getElementById("noticeBody").textContent = t.body;
+  document.querySelectorAll(".notice-lang-chip").forEach(el => {
+    el.classList.toggle("active", el.textContent.trim().startsWith(LANGUAGES[code].flag));
+  });
+}
 
 // ── 언어 그리드 초기화 ──────────────────────────────────────
 function initLangGrid() {
@@ -997,6 +1049,8 @@ document.getElementById("adminModal").addEventListener("click", e => {
 
 // ── 초기화 ──────────────────────────────────────────────────
 initLangGrid();
+renderNoticeLangBar();
+switchNoticeLang("en");
 loadPosts();
 setInterval(loadPosts, 30000);
 </script>
