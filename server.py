@@ -282,10 +282,12 @@ def _load_board_local() -> dict:
             d = json.loads(BOARD_FILE.read_text(encoding="utf-8"))
             if "emergency" not in d:
                 d["emergency"] = []
+            if "culture" not in d:
+                d["culture"] = []
             return d
         except Exception:
             pass
-    return {"posts": [], "emergency": []}
+    return {"posts": [], "emergency": [], "culture": []}
 
 
 def _save_board_local(data: dict):
@@ -331,6 +333,7 @@ async def _save_board(data: dict):
 class BoardPostRequest(BaseModel):
     author_name: str
     lang: str
+    title: str = ""
     text: str
 
 
@@ -358,12 +361,24 @@ async def create_board_post(req: BoardPostRequest):
     src_gt = LANGUAGES[req.lang]["gt"]
     loop = asyncio.get_event_loop()
 
-    if req.lang == "ko":
-        korean_text = req.text
+    # 제목·내용 동시 번역
+    translate_tasks = []
+    has_title = bool(req.title.strip())
+    if has_title:
+        translate_tasks.append(loop.run_in_executor(_translate_pool, _translate_one, req.title, src_gt, "ko"))
+    if req.lang != "ko":
+        translate_tasks.append(loop.run_in_executor(_translate_pool, _translate_one, req.text, src_gt, "ko"))
+
+    results = await asyncio.gather(*translate_tasks, return_exceptions=True) if translate_tasks else []
+
+    idx = 0
+    if has_title:
+        title_ko = results[idx] if isinstance(results[idx], str) else req.title
+        idx += 1
     else:
-        korean_text = await loop.run_in_executor(
-            _translate_pool, _translate_one, req.text, src_gt, "ko"
-        )
+        title_ko = ""
+
+    korean_text = results[idx] if idx < len(results) and isinstance(results[idx], str) else req.text
 
     post = {
         "id": str(uuid.uuid4()),
@@ -371,6 +386,8 @@ async def create_board_post(req: BoardPostRequest):
         "lang": req.lang,
         "lang_name": LANGUAGES[req.lang]["name"],
         "flag": LANGUAGES[req.lang]["flag"],
+        "title": req.title.strip(),
+        "title_ko": title_ko,
         "original_text": req.text,
         "korean_text": korean_text,
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
@@ -679,6 +696,91 @@ async def delete_emergency_post(post_id: str, pw: str = ""):
         before = len(data.get("emergency", []))
         data["emergency"] = [p for p in data.get("emergency", []) if p["id"] != post_id]
         if len(data["emergency"]) == before:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        await _save_board(data)
+    return {"ok": True}
+
+
+# ── 한국 직장문화 안내 ────────────────────────────────────────────────────────
+@app.get("/culture")
+async def culture_page():
+    return FileResponse("culture.html")
+
+
+class CulturePostRequest(BaseModel):
+    title: str = ""
+    text: str
+    admin_password: str
+
+
+@app.get("/api/culture/posts")
+async def get_culture_posts():
+    async with _board_lock:
+        data = await _load_board()
+    return data.get("culture", [])
+
+
+@app.post("/api/culture/posts")
+async def create_culture_post(req: CulturePostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
+
+    post = {
+        "id": str(uuid.uuid4()),
+        "title": req.title.strip(),
+        "title_translations": title_trans,
+        "original_text": req.text,
+        "translations": text_trans,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+        "edited": False,
+    }
+
+    async with _board_lock:
+        data = await _load_board()
+        data.setdefault("culture", []).insert(0, post)
+        await _save_board(data)
+
+    return post
+
+
+@app.put("/api/culture/posts/{post_id}")
+async def edit_culture_post(post_id: str, req: CulturePostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
+
+    async with _board_lock:
+        data = await _load_board()
+        post = next((p for p in data.get("culture", []) if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        post.update({
+            "title": req.title.strip(),
+            "title_translations": title_trans,
+            "original_text": req.text,
+            "translations": text_trans,
+            "edited": True,
+        })
+        await _save_board(data)
+    return post
+
+
+@app.delete("/api/culture/posts/{post_id}")
+async def delete_culture_post(post_id: str, pw: str = ""):
+    if pw != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    async with _board_lock:
+        data = await _load_board()
+        before = len(data.get("culture", []))
+        data["culture"] = [p for p in data.get("culture", []) if p["id"] != post_id]
+        if len(data["culture"]) == before:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
         await _save_board(data)
     return {"ok": True}
