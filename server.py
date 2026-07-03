@@ -284,10 +284,12 @@ def _load_board_local() -> dict:
                 d["emergency"] = []
             if "culture" not in d:
                 d["culture"] = []
+            if "contacts" not in d:
+                d["contacts"] = []
             return d
         except Exception:
             pass
-    return {"posts": [], "emergency": [], "culture": []}
+    return {"posts": [], "emergency": [], "culture": [], "contacts": []}
 
 
 def _save_board_local(data: dict):
@@ -781,6 +783,91 @@ async def delete_culture_post(post_id: str, pw: str = ""):
         before = len(data.get("culture", []))
         data["culture"] = [p for p in data.get("culture", []) if p["id"] != post_id]
         if len(data["culture"]) == before:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        await _save_board(data)
+    return {"ok": True}
+
+
+# ── 비상시 연락처 ─────────────────────────────────────────────────────────────
+@app.get("/contacts")
+async def contacts_page():
+    return FileResponse("contacts.html")
+
+
+class ContactsPostRequest(BaseModel):
+    title: str = ""
+    text: str
+    admin_password: str
+
+
+@app.get("/api/contacts/posts")
+async def get_contacts_posts():
+    async with _board_lock:
+        data = await _load_board()
+    return data.get("contacts", [])
+
+
+@app.post("/api/contacts/posts")
+async def create_contacts_post(req: ContactsPostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
+
+    post = {
+        "id": str(uuid.uuid4()),
+        "title": req.title.strip(),
+        "title_translations": title_trans,
+        "original_text": req.text,
+        "translations": text_trans,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+        "edited": False,
+    }
+
+    async with _board_lock:
+        data = await _load_board()
+        data.setdefault("contacts", []).insert(0, post)
+        await _save_board(data)
+
+    return post
+
+
+@app.put("/api/contacts/posts/{post_id}")
+async def edit_contacts_post(post_id: str, req: ContactsPostRequest):
+    if req.admin_password != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="내용을 입력하세요.")
+
+    title_trans, text_trans = await _translate_emergency(req.title.strip(), req.text)
+
+    async with _board_lock:
+        data = await _load_board()
+        post = next((p for p in data.get("contacts", []) if p["id"] == post_id), None)
+        if not post:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        post.update({
+            "title": req.title.strip(),
+            "title_translations": title_trans,
+            "original_text": req.text,
+            "translations": text_trans,
+            "edited": True,
+        })
+        await _save_board(data)
+    return post
+
+
+@app.delete("/api/contacts/posts/{post_id}")
+async def delete_contacts_post(post_id: str, pw: str = ""):
+    if pw != BOARD_ADMIN_PW:
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    async with _board_lock:
+        data = await _load_board()
+        before = len(data.get("contacts", []))
+        data["contacts"] = [p for p in data.get("contacts", []) if p["id"] != post_id]
+        if len(data["contacts"]) == before:
             raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
         await _save_board(data)
     return {"ok": True}
