@@ -1071,10 +1071,8 @@ setInterval(loadPosts, 30000);
   <div style="background:#fff; border-radius:16px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); max-width:280px; width:90%;">
     <h3 style="margin:0 0 4px; color:#1e1b4b; font-size:16px;">WorkBridge Korea</h3>
     <p style="margin:0 0 16px; color:#6b7280; font-size:12px;">QR코드로 사이트에 접속하세요</p>
-    <div id="qrImage" style="display:flex; justify-content:center; align-items:center; min-height:160px;">
-      <span style="color:#9ca3af; font-size:13px;">QR 로딩 중...</span>
-    </div>
-    <p id="qrUrl" style="margin:12px 0 0; color:#6366f1; font-size:11px; word-break:break-all;"></p>
+    <img src="/static/qr-site.svg" alt="QR Code" style="width:200px; height:200px; border-radius:8px;" />
+    <p style="margin:12px 0 0; color:#6366f1; font-size:11px;">sea-interpreter.onrender.com</p>
     <button onclick="document.getElementById('qrModal').style.display='none'"
       style="margin-top:16px; padding:8px 24px; background:#6366f1; color:#fff; border:none;
              border-radius:8px; cursor:pointer; font-size:14px;">닫기</button>
@@ -1082,17 +1080,7 @@ setInterval(loadPosts, 30000);
 </div>
 <script>
 function openQrModal() {
-  var modal = document.getElementById('qrModal');
-  modal.style.display = 'flex';
-  if (modal.dataset.loaded) return;
-  modal.dataset.loaded = '1';
-  document.getElementById('qrUrl').textContent = window.location.origin;
-  fetch('/api/qr')
-    .then(function(r) { return r.text(); })
-    .then(function(svg) { document.getElementById('qrImage').innerHTML = svg; })
-    .catch(function() {
-      document.getElementById('qrImage').innerHTML = '<span style="color:#ef4444;font-size:12px">QR 로드 실패 — 서버를 확인해주세요</span>';
-    });
+  document.getElementById('qrModal').style.display = 'flex';
 }
 </script>
 </body>
