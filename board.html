@@ -473,8 +473,6 @@
     <span id="adminBadge" class="admin-badge" style="display:none">👑 관리자 모드</span>
     <button class="nav-btn" id="adminToggleBtn" onclick="toggleAdminMode()">🔐 관리자 로그인</button>
     <a href="/emergency" class="nav-btn" style="border-color:#7f1d1d;background:rgba(239,68,68,0.1);color:#fca5a5;">📋 Foreign Worker Guidelines</a>
-    <!-- QR 코드 버튼 -->
-    <button class="nav-btn" onclick="openQrModal()" title="사이트 QR코드" style="padding:4px 10px; font-size:18px; line-height:1;">📱</button>
     <a href="/contacts" class="nav-btn" style="border-color:#92400e;background:rgba(245,158,11,0.1);color:#fcd34d;">📞 Emergency Contacts</a>
     <a href="/" class="nav-btn">← 통역기로</a>
   </div>
@@ -1064,24 +1062,6 @@ switchNoticeLang("en");
 loadPosts();
 setInterval(loadPosts, 30000);
 </script>
-<!-- QR 코드 모달 -->
-<div id="qrModal" onclick="if(event.target===this)this.style.display='none'"
-  style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999;
-         align-items:center; justify-content:center;">
-  <div style="background:#fff; border-radius:16px; padding:24px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5); max-width:280px; width:90%;">
-    <h3 style="margin:0 0 4px; color:#1e1b4b; font-size:16px;">WorkBridge Korea</h3>
-    <p style="margin:0 0 16px; color:#6b7280; font-size:12px;">QR코드로 사이트에 접속하세요</p>
-    <img src="/static/qr-site.svg" alt="QR Code" style="width:200px; height:200px; border-radius:8px;" />
-    <p style="margin:12px 0 0; color:#6366f1; font-size:11px;">sea-interpreter.onrender.com</p>
-    <button onclick="document.getElementById('qrModal').style.display='none'"
-      style="margin-top:16px; padding:8px 24px; background:#6366f1; color:#fff; border:none;
-             border-radius:8px; cursor:pointer; font-size:14px;">닫기</button>
-  </div>
-</div>
-<script>
-function openQrModal() {
-  document.getElementById('qrModal').style.display = 'flex';
-}
-</script>
+
 </body>
 </html>
