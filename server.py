@@ -41,9 +41,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File
+import io
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
@@ -259,6 +260,15 @@ async def get_languages():
 @app.get("/")
 async def root():
     return FileResponse("index.html")
+
+@app.get("/api/qr")
+async def generate_qr(request: Request):
+    import segno
+    base_url = str(request.base_url).rstrip("/")
+    qr = segno.make(base_url, error="l")
+    buf = io.StringIO()
+    qr.save(buf, kind="svg", scale=4, border=2, dark="#1e1b4b", light="#ffffff")
+    return Response(content=buf.getvalue(), media_type="image/svg+xml")
 
 @app.get("/manifest.json")
 async def manifest():
