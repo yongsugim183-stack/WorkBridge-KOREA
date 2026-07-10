@@ -44,6 +44,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
 
@@ -258,6 +259,17 @@ async def get_languages():
 @app.get("/")
 async def root():
     return FileResponse("index.html")
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse("manifest.json", media_type="application/manifest+json")
+
+@app.get("/service-worker.js")
+async def service_worker():
+    return FileResponse("service-worker.js", media_type="application/javascript")
+
+if Path("static").exists():
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.get("/board")

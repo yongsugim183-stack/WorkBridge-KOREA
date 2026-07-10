@@ -8,6 +8,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server.py index.html board.html emergency.html contacts.html ./
+COPY manifest.json service-worker.js ./
+COPY static/ ./static/
 
 ENV WHISPER_MODEL=tiny
 ENV WHISPER_THREADS=2

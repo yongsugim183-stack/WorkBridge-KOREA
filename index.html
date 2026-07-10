@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WorkBridge Korea</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WorkBridge" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
   <style>
     :root {
       --primary: #6366f1;
@@ -1285,6 +1292,13 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
 }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(() => console.log('[PWA] Service Worker 등록 완료'))
+      .catch(e => console.warn('[PWA] Service Worker 등록 실패:', e));
+  }
 </script>
 </body>
 </html>
