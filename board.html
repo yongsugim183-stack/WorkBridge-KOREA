@@ -459,6 +459,7 @@
     .btn-secondary:hover { color: var(--text); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -716,10 +717,54 @@ function startAutoSave() {
   autoSaveTimer = setTimeout(saveDraft, 800);
 }
 
+// ── Google 인증 ──────────────────────────────────────────────
+var gUser = null;
+
+function initGoogleAuth() {
+  var stored = sessionStorage.getItem("gUser");
+  if (stored) gUser = JSON.parse(stored);
+  google.accounts.id.initialize({
+    client_id: "160568727584-oojo6o1btvv3p764pstvpo5818d4lij8.apps.googleusercontent.com",
+    callback: function(resp) {
+      var p = JSON.parse(atob(resp.credential.split(".")[1]));
+      gUser = { name: p.name, email: p.email, picture: p.picture };
+      sessionStorage.setItem("gUser", JSON.stringify(gUser));
+      document.getElementById("googleModal").style.display = "none";
+      _openPostModalInner();
+    },
+    auto_select: false
+  });
+}
+
+function googleSignOut() {
+  gUser = null;
+  sessionStorage.removeItem("gUser");
+  showToast("로그아웃 되었습니다");
+  document.getElementById("googleUserBar").style.display = "none";
+}
+
 // ── 글쓰기 모달 ──────────────────────────────────────────────
 function openPostModal() {
+  if (gUser) {
+    _openPostModalInner();
+  } else {
+    // Google 로그인 모달 표시
+    document.getElementById("googleModal").style.display = "flex";
+    google.accounts.id.renderButton(
+      document.getElementById("googleSignInBtn"),
+      { theme: "outline", size: "large", text: "signin_with", locale: "ko", width: 240 }
+    );
+  }
+}
+
+function _openPostModalInner() {
+  // 로그인 유저 바 표시
+  if (gUser) {
+    document.getElementById("googleUserName").textContent = gUser.name;
+    document.getElementById("googleUserBar").style.display = "flex";
+  }
   document.getElementById("postModal").classList.remove("hidden");
-  document.getElementById("authorName").value = "";
+  document.getElementById("authorName").value = gUser ? gUser.name : "";
   document.getElementById("postTitle").value = "";
   document.getElementById("postText").value = "";
   selectedLang = "";
@@ -727,12 +772,8 @@ function openPostModal() {
   document.getElementById("selectedLangHint").textContent = "";
   document.getElementById("postText").placeholder = "내용을 입력하세요...";
   document.getElementById("draftBadge").style.display = "none";
-
-  // 저장된 임시글 복원
   loadDraft();
-  document.getElementById("authorName").focus();
-
-  // 입력 시 자동저장 이벤트
+  document.getElementById("postText").focus();
   document.getElementById("authorName").oninput = startAutoSave;
   document.getElementById("postTitle").oninput = startAutoSave;
   document.getElementById("postText").oninput = startAutoSave;
@@ -1070,7 +1111,44 @@ renderNoticeLangBar();
 switchNoticeLang("en");
 loadPosts();
 setInterval(loadPosts, 30000);
+
+// Google Auth 초기화 (GIS 로드 후)
+window.addEventListener("load", function() {
+  if (typeof google !== "undefined") initGoogleAuth();
+  // 로그인 상태 복원
+  var stored = sessionStorage.getItem("gUser");
+  if (stored) {
+    gUser = JSON.parse(stored);
+    document.getElementById("googleUserName").textContent = gUser.name;
+    document.getElementById("googleUserBar").style.display = "flex";
+  }
+});
 </script>
+
+<!-- Google 로그인 모달 -->
+<div id="googleModal" onclick="if(event.target===this)this.style.display='none'"
+  style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px 28px; text-align:center; max-width:320px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div style="font-size:32px; margin-bottom:12px;">🔐</div>
+    <h3 style="color:#f1f5f9; font-size:17px; margin:0 0 6px;">로그인이 필요합니다</h3>
+    <p style="color:#94a3b8; font-size:13px; margin:0 0 24px; line-height:1.6;">글을 작성하려면 Google 계정으로<br>로그인해 주세요.</p>
+    <div id="googleSignInBtn" style="display:flex; justify-content:center; margin-bottom:16px;"></div>
+    <button onclick="document.getElementById('googleModal').style.display='none'"
+      style="color:#64748b; background:none; border:none; font-size:13px; cursor:pointer;">취소</button>
+  </div>
+</div>
+
+<!-- 로그인 유저 바 -->
+<div id="googleUserBar"
+  style="display:none; position:fixed; bottom:20px; right:20px; background:#1e293b; border:1px solid #334155;
+         border-radius:12px; padding:10px 16px; align-items:center; gap:12px; z-index:1000;
+         box-shadow:0 4px 20px rgba(0,0,0,0.4); font-size:13px;">
+  <span style="color:#94a3b8;">✅ 로그인:</span>
+  <span id="googleUserName" style="color:#c7d2fe; font-weight:600;"></span>
+  <button onclick="googleSignOut()"
+    style="padding:4px 10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3);
+           color:#fca5a5; border-radius:6px; cursor:pointer; font-size:12px;">로그아웃</button>
+</div>
 
 </body>
 </html>
