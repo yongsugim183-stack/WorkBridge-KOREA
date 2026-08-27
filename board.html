@@ -458,6 +458,60 @@
     .btn-secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
     .btn-secondary:hover { color: var(--text); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── 반응형 ── */
+    @media (max-width: 768px) {
+      header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
+      header .logo { font-size: 22px; }
+      header h1 { font-size: 14px; }
+      header p { font-size: 11px; }
+      .header-nav { gap: 6px; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+      .nav-btn { font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0; }
+      .admin-badge { font-size: 11px; padding: 4px 10px; white-space: nowrap; }
+
+      .main { padding: 14px 12px; }
+
+      .notice-banner { padding: 14px 16px; }
+      .notice-banner .notice-body { font-size: 13px; }
+
+      .toolbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .toolbar h2 { font-size: 17px; }
+      .toolbar-right { width: 100%; justify-content: flex-end; }
+
+      .post-card { padding: 14px 16px; }
+      .post-author { font-size: 14px; }
+      .post-original { font-size: 14px; }
+      .post-korean { font-size: 13px; }
+      .post-time { font-size: 11px; }
+
+      .post-modal-inner {
+        width: 96vw;
+        max-height: 92vh;
+        padding: 20px 16px;
+        overflow-y: auto;
+      }
+      .modal-title { font-size: 16px; }
+
+      #googleModal > div {
+        width: 92vw;
+        padding: 24px 18px;
+      }
+
+      #googleUserBar {
+        bottom: 12px;
+        right: 12px;
+        font-size: 12px;
+        padding: 8px 12px;
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 12px; }
+      .toolbar h2 { font-size: 15px; }
+      .post-flag { font-size: 18px; }
+      .notice-lang-chip { font-size: 11px; padding: 2px 8px; }
+    }
   </style>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
