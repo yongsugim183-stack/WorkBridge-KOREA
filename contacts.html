@@ -193,6 +193,34 @@
       animation: spin 0.6s linear infinite; display: inline-block;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 반응형 ── */
+    @media (max-width: 768px) {
+      header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
+      header .logo { font-size: 22px; }
+      header h1 { font-size: 14px; }
+      header p { font-size: 11px; }
+      .header-nav { gap: 6px; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+      .nav-btn { font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0; }
+      .admin-badge { font-size: 11px; padding: 4px 10px; white-space: nowrap; }
+
+      .lang-bar { padding: 8px 12px; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+      .lang-chip { white-space: nowrap; flex-shrink: 0; font-size: 11px; padding: 4px 10px; }
+
+      .main { padding: 14px 12px; }
+      .toolbar { flex-direction: column; align-items: flex-start; }
+      .toolbar h2 { font-size: 17px; }
+
+      .contact-grid { grid-template-columns: 1fr !important; }
+      .contact-card { padding: 14px 16px; }
+      .contact-name { font-size: 14px; }
+      .contact-phone { font-size: 22px; }
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 12px; }
+      .contact-phone { font-size: 20px; }
+    }
   </style>
 </head>
 <body>
