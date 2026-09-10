@@ -882,7 +882,20 @@ async function startWhisperRecording() {
   try {
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    showToast("🎤 마이크 접근 오류: " + e.message);
+    let msg = "🎤 마이크 접근 오류";
+    if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+      msg = "🎤 마이크 권한이 차단되었습니다.\n브라우저 주소창 자물쇠(🔒) → 마이크 허용 후 새로고침 하세요.";
+    } else if (e.name === "NotFoundError" || e.name === "DevicesNotFoundError") {
+      msg = "🎤 마이크 장치를 찾을 수 없습니다.\n마이크가 연결되어 있는지 확인하세요.";
+    } else if (e.name === "NotReadableError") {
+      msg = "🎤 마이크가 다른 앱에서 사용 중입니다.\n다른 앱을 닫고 다시 시도하세요.";
+    } else if (e.name === "SecurityError") {
+      msg = "🎤 보안 오류: HTTPS 환경에서만 마이크를 사용할 수 있습니다.";
+    } else {
+      msg = "🎤 마이크 오류: " + e.message;
+    }
+    showToast(msg);
+    setRecordingUI(false);
     return;
   }
 
