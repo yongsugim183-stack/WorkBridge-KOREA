@@ -1211,10 +1211,35 @@ function buildCards() {
   updateTranslateBtn();
 }
 
+// ── 번역 캐시 (세션 내 동일 텍스트 즉시 반환) ──────
+const _translateCache = new Map();
+const _CACHE_MAX = 100; // 최대 캐시 항목 수
+
+function _cacheKey(text, srcLang, langs) {
+  return `${srcLang}|${[...langs].sort().join(",")}|${text}`;
+}
+function _cacheGet(text, srcLang, langs) {
+  return _translateCache.get(_cacheKey(text, srcLang, langs));
+}
+function _cacheSet(text, srcLang, langs, result) {
+  if (_translateCache.size >= _CACHE_MAX) {
+    _translateCache.delete(_translateCache.keys().next().value); // 가장 오래된 항목 제거
+  }
+  _translateCache.set(_cacheKey(text, srcLang, langs), result);
+}
+
 // ── 번역 ───────────────────────────────────────────
 async function translate() {
   const text = document.getElementById("inputText").value.trim();
   if (!text) { showToast("⚠️ 번역할 텍스트를 입력하세요."); return; }
+
+  const srcLang = document.getElementById("sourceLang").value;
+  const cached = _cacheGet(text, srcLang, activeLangs);
+  if (cached) {
+    displayResult(cached);
+    showToast("⚡ 캐시에서 즉시 로드됨");
+    return;
+  }
 
   const btn = document.getElementById("translateBtn");
   btn.disabled = true;
@@ -1232,6 +1257,7 @@ async function translate() {
     } else {
       result = await callMyMemory(text);
     }
+    _cacheSet(text, srcLang, activeLangs, result);
     displayResult(result);
   } catch (e) {
     showToast("❌ " + (e.message || "번역 오류가 발생했습니다."));
