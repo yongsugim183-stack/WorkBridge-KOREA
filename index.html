@@ -679,7 +679,7 @@
     ></textarea>
     <div class="char-count"><span id="charCount">0</span>자 · Shift+Enter로 줄바꿈 · Enter로 번역</div>
 
-    <button class="translate-btn" id="translateBtn" onclick="translate()">
+    <button class="translate-btn" id="translateBtn" onclick="doTranslate()">
       🌐 전체 언어 동시 번역
     </button>
     <button class="clear-btn" onclick="clearAll()">✕ 초기화</button>
@@ -868,7 +868,7 @@ function setupWebSpeechFallback() {
     isRecording = false;
     setRecordingUI(false);
     document.getElementById("liveBar").classList.remove("visible");
-    if (document.getElementById("inputText").value.trim()) translate();
+    if (document.getElementById("inputText").value.trim()) doTranslate();
   };
 
   recognition.onerror = e => {
@@ -985,7 +985,7 @@ async function transcribeAudio(blob) {
       const langName = getWhisperLangName(result.language);
       document.getElementById("liveText").textContent = `✅ 감지 언어: ${langName}`;
       showToast(`🎙️ 인식 완료 · ${langName}`);
-      translate();
+      doTranslate();
     } else {
       showToast("⚠️ 음성이 인식되지 않았습니다.");
       document.getElementById("liveBar").classList.remove("visible");
@@ -1229,7 +1229,7 @@ function _cacheSet(text, srcLang, langs, result) {
 }
 
 // ── 번역 ───────────────────────────────────────────
-async function translate() {
+async function doTranslate() {
   const text = document.getElementById("inputText").value.trim();
   if (!text) { showToast("⚠️ 번역할 텍스트를 입력하세요."); return; }
 
@@ -1370,7 +1370,7 @@ function updateCharCount() {
 function handleTextareaKey(e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    translate();
+    doTranslate();
   }
 }
 
