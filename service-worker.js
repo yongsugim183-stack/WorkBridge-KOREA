@@ -1,4 +1,4 @@
-const CACHE_NAME = "workbridge-v1";
+const CACHE_NAME = "workbridge-v2";
 const STATIC_ASSETS = [
   "/",
   "/board",
