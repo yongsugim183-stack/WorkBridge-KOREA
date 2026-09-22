@@ -144,7 +144,12 @@ class TranslateResponse(BaseModel):
 def _translate_one(text: str, src: str, tgt_gt: str) -> str:
     translator = GoogleTranslator(source=src, target=tgt_gt)
     translator.session = _http_session  # 세션 재사용
-    return translator.translate(text)
+    result = translator.translate(text)
+    if not result:
+        # 세션 재사용 실패 시 새 세션으로 재시도
+        translator2 = GoogleTranslator(source=src, target=tgt_gt)
+        result = translator2.translate(text)
+    return result or ""
 
 
 @app.post("/api/translate", response_model=TranslateResponse)
@@ -163,10 +168,13 @@ async def translate(req: TranslateRequest):
     ]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    translations = {
-        code: (r if isinstance(r, str) else "")
-        for code, r in zip(codes, results)
-    }
+    translations = {}
+    for code, r in zip(codes, results):
+        if isinstance(r, Exception):
+            print(f"[번역오류] {code}: {type(r).__name__}: {r}")
+            translations[code] = ""
+        else:
+            translations[code] = r or ""
 
     return TranslateResponse(
         source_text=req.text,
