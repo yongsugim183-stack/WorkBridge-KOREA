@@ -142,14 +142,29 @@ class TranslateResponse(BaseModel):
 
 
 def _translate_one(text: str, src: str, tgt_gt: str) -> str:
-    translator = GoogleTranslator(source=src, target=tgt_gt)
-    translator.session = _http_session  # 세션 재사용
-    result = translator.translate(text)
-    if not result:
-        # 세션 재사용 실패 시 새 세션으로 재시도
-        translator2 = GoogleTranslator(source=src, target=tgt_gt)
-        result = translator2.translate(text)
-    return result or ""
+    # 1차: deep-translator (Google Translate 비공식)
+    try:
+        translator = GoogleTranslator(source=src, target=tgt_gt)
+        result = translator.translate(text)
+        if result and result.strip():
+            return result
+    except Exception as e:
+        print(f"[GoogleTranslator 오류] {tgt_gt}: {e}")
+
+    # 2차 폴백: MyMemory API (무료, 공식)
+    try:
+        langpair = f"{src}|{tgt_gt}" if src != "auto" else f"ko|{tgt_gt}"
+        url = f"https://api.mymemory.translated.net/get?q={_requests.utils.quote(text)}&langpair={langpair}"
+        r = _http_session.get(url, timeout=8)
+        data = r.json()
+        fallback = data.get("responseData", {}).get("translatedText", "")
+        if fallback and fallback.strip():
+            print(f"[MyMemory 폴백 성공] {tgt_gt}")
+            return fallback
+    except Exception as e:
+        print(f"[MyMemory 폴백 오류] {tgt_gt}: {e}")
+
+    return ""
 
 
 @app.post("/api/translate", response_model=TranslateResponse)
