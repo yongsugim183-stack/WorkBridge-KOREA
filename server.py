@@ -142,7 +142,20 @@ class TranslateResponse(BaseModel):
 
 
 def _translate_one(text: str, src: str, tgt_gt: str) -> str:
-    # 1차: deep-translator (Google Translate 비공식)
+    # 1순위: MyMemory API (무료 공식 API, Rate Limit 없음)
+    try:
+        src_mm = src if src != "auto" else "ko"
+        langpair = f"{src_mm}|{tgt_gt}"
+        url = f"https://api.mymemory.translated.net/get?q={_requests.utils.quote(text)}&langpair={langpair}"
+        r = _http_session.get(url, timeout=8)
+        data = r.json()
+        result = data.get("responseData", {}).get("translatedText", "")
+        if result and result.strip() and result != text:
+            return result
+    except Exception as e:
+        print(f"[MyMemory 오류] {tgt_gt}: {e}")
+
+    # 2순위 폴백: deep-translator (Google Translate 비공식)
     try:
         translator = GoogleTranslator(source=src, target=tgt_gt)
         result = translator.translate(text)
@@ -150,19 +163,6 @@ def _translate_one(text: str, src: str, tgt_gt: str) -> str:
             return result
     except Exception as e:
         print(f"[GoogleTranslator 오류] {tgt_gt}: {e}")
-
-    # 2차 폴백: MyMemory API (무료, 공식)
-    try:
-        langpair = f"{src}|{tgt_gt}" if src != "auto" else f"ko|{tgt_gt}"
-        url = f"https://api.mymemory.translated.net/get?q={_requests.utils.quote(text)}&langpair={langpair}"
-        r = _http_session.get(url, timeout=8)
-        data = r.json()
-        fallback = data.get("responseData", {}).get("translatedText", "")
-        if fallback and fallback.strip():
-            print(f"[MyMemory 폴백 성공] {tgt_gt}")
-            return fallback
-    except Exception as e:
-        print(f"[MyMemory 폴백 오류] {tgt_gt}: {e}")
 
     return ""
 
