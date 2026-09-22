@@ -679,7 +679,7 @@
     ></textarea>
     <div class="char-count"><span id="charCount">0</span>자 · Shift+Enter로 줄바꿈 · Enter로 번역</div>
 
-    <button class="translate-btn" id="translateBtn" onclick="doTranslate()">
+    <button class="translate-btn" id="translateBtn" onclick="window.doTranslate()">
       🌐 전체 언어 동시 번역
     </button>
     <button class="clear-btn" onclick="clearAll()">✕ 초기화</button>
@@ -1409,6 +1409,8 @@ function showToast(msg) {
   // 브라우저 내장 CSS translate 속성 충돌 방지: window에 명시 등록
   window.doTranslate = doTranslate;
   window.translate = doTranslate;
+  // 버튼 onclick 속성 무시하고 addEventListener로 안전 바인딩
+  document.getElementById('translateBtn').addEventListener('click', doTranslate);
 </script>
 </body>
 </html>
