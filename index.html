@@ -1229,6 +1229,7 @@ function _cacheSet(text, srcLang, langs, result) {
 }
 
 // ── 번역 ───────────────────────────────────────────
+// window에 명시 등록 (브라우저 내장 CSS translate 속성과 충돌 방지)
 async function doTranslate() {
   const text = document.getElementById("inputText").value.trim();
   if (!text) { showToast("⚠️ 번역할 텍스트를 입력하세요."); return; }
@@ -1405,6 +1406,9 @@ function showToast(msg) {
       .then(() => console.log('[PWA] Service Worker 등록 완료'))
       .catch(e => console.warn('[PWA] Service Worker 등록 실패:', e));
   }
+  // 브라우저 내장 CSS translate 속성 충돌 방지: window에 명시 등록
+  window.doTranslate = doTranslate;
+  window.translate = doTranslate;
 </script>
 </body>
 </html>
