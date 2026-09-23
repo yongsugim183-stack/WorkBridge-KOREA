@@ -141,35 +141,8 @@ class TranslateResponse(BaseModel):
     elapsed_ms: int
 
 
-_LINGVA_INSTANCES = [
-    "https://lingva.ml",
-    "https://lingva.thedaviddelta.com",
-]
-
-def _translate_lingva(text: str, src: str, tgt: str) -> str:
-    src_l = src if src != "auto" else "ko"
-    encoded = _requests.utils.quote(text)
-    for base in _LINGVA_INSTANCES:
-        try:
-            url = f"{base}/api/v1/{src_l}/{tgt}/{encoded}"
-            r = _http_session.get(url, timeout=8)
-            if r.status_code == 200:
-                data = r.json()
-                result = data.get("translation", "")
-                if result and result.strip() and result != text:
-                    return result
-        except Exception as e:
-            print(f"[Lingva 오류] {base} {tgt}: {e}")
-    return ""
-
-
 def _translate_one(text: str, src: str, tgt_gt: str) -> str:
-    # 1순위: Lingva Translate (Google 기반, 무료, 키 불필요)
-    result = _translate_lingva(text, src, tgt_gt)
-    if result:
-        return result
-
-    # 2순위: MyMemory API (무료 공식)
+    # 1순위: MyMemory API (무료 공식)
     try:
         src_mm = src if src != "auto" else "ko"
         langpair = f"{src_mm}|{tgt_gt}"
@@ -182,7 +155,7 @@ def _translate_one(text: str, src: str, tgt_gt: str) -> str:
     except Exception as e:
         print(f"[MyMemory 오류] {tgt_gt}: {e}")
 
-    # 3순위: deep-translator (Google Translate 비공식)
+    # 2순위: deep-translator (Google Translate 비공식)
     try:
         translator = GoogleTranslator(source=src, target=tgt_gt)
         result = translator.translate(text)
